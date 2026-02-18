@@ -136,19 +136,55 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
-          mkdir -Force release | Out-Null
-          go build -o release/update-helper-windows.exe ./cmd/update-helper
+          $ProgressPreference = "SilentlyContinue"
+          
+          # Create release directory
+          New-Item -ItemType Directory -Force -Path "release" | Out-Null
+          
+          # Build update-helper
+          go build -o "release/update-helper-windows.exe" ./cmd/update-helper
+          if (-not (Test-Path "release/update-helper-windows.exe")) {
+              throw "Failed to build update-helper-windows.exe"
+          }
           
           # Add NSIS to PATH for this step
           $env:PATH = "C:\Program Files (x86)\NSIS\Bin;$env:PATH"
           
+          # Determine output filename based on VERSION env var
+          $versionSuffix = if ($env:VERSION) { "-$env:VERSION" } else { "" }
+          $outputName = "PorkLauncher-windows-x64$versionSuffix"
+          
           # Build portable version
+          Write-Host "Building portable version..."
           wails build -platform windows/amd64
-          Copy-Item build/bin/HyLauncher.exe release/PorkLauncher-windows-x64-portable.exe
+          
+          $portableSource = "build/bin/HyLauncher.exe"
+          $portableDest = "release/$outputName-portable.exe"
+          
+          if (-not (Test-Path $portableSource)) {
+              throw "Portable binary not found at $portableSource"
+          }
+          
+          Copy-Item $portableSource $portableDest -Force
+          Write-Host "Created: $portableDest"
           
           # Build NSIS installer version
-          wails build -platform windows/amd64 -nsis -o PorkLauncher
-          Copy-Item build/bin/HyLauncher-amd64-installer.exe release/PorkLauncher-windows-x64-setup.exe
+          Write-Host "Building NSIS installer..."
+          wails build -platform windows/amd64 -nsis
+          
+          $installerSource = "build/bin/HyLauncher-amd64-installer.exe"
+          $installerDest = "release/$outputName-setup.exe"
+          
+          if (-not (Test-Path $installerSource)) {
+              throw "Installer binary not found at $installerSource"
+          }
+          
+          Copy-Item $installerSource $installerDest -Force
+          Write-Host "Created: $installerDest"
+          
+          # List release contents
+          Write-Host "`nRelease artifacts:"
+          Get-ChildItem "release/*.exe" | Select-Object Name, @{N="Size";E={"{0:N0} KB" -f ($_.Length/1KB)}}
 
       - name: Build (macOS ARM64)
         if: matrix.platform == 'darwin/arm64'
