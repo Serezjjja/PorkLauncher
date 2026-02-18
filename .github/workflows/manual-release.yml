@@ -80,11 +80,22 @@ jobs:
       - name: Build (Linux)
         if: startsWith(matrix.platform, 'linux/')
         run: |
+          set -e
+          VERSION="${{ inputs.version }}"
+          echo "Building Linux version $VERSION"
+          
           mkdir -p release
           go build -o release/update-helper-linux ./cmd/update-helper
           
-          # Build the application
-          wails build -platform linux/amd64 -tags webkit2_41 -o PorkLauncher
+          # Build the application (uses outputfilename from wails.json)
+          wails build -platform linux/amd64 -tags webkit2_41
+          
+          # Verify binary exists
+          if [ ! -f "build/bin/HyLauncher" ]; then
+            echo "ERROR: Build failed - HyLauncher binary not found"
+            ls -la build/bin/
+            exit 1
+          fi
           
           # Create AppImage using linuxdeploy with GTK plugin
           wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
@@ -130,6 +141,9 @@ jobs:
           # Also keep raw binary for backward compatibility
           cp build/bin/HyLauncher release/PorkLauncher-linux-x64
           chmod +x release/PorkLauncher-linux-x64
+          
+          echo "Linux build complete:"
+          ls -lh release/
 
       - name: Build (Windows)
         if: startsWith(matrix.platform, 'windows/')
@@ -189,23 +203,28 @@ jobs:
       - name: Build (macOS ARM64)
         if: matrix.platform == 'darwin/arm64'
         run: |
+          set -e
+          VERSION="${{ inputs.version }}"
+          echo "Building macOS ARM64 version $VERSION"
+          
           mkdir -p release
           go build -o release/update-helper-macos-arm64 ./cmd/update-helper
           chmod +x release/update-helper-macos-arm64
           
-          # Build ARM64 binary
-          wails build -platform darwin/arm64 -o PorkLauncher
+          # Build ARM64 binary (uses outputfilename from wails.json)
+          wails build -platform darwin/arm64
           
           # Check if build succeeded
           if [ ! -d "build/bin/HyLauncher.app" ]; then
             echo "ERROR: Build failed - HyLauncher.app not found"
+            ls -la build/bin/
             exit 1
           fi
           
           # Create DMG
           npm install -g create-dmg
           create-dmg \
-            --volname "PorkLauncher"
+            --volname "PorkLauncher" \
             --window-size 800 400 \
             --icon-size 100 \
             --app-drop-link 600 185 \
@@ -231,23 +250,28 @@ jobs:
       - name: Build (macOS AMD64)
         if: matrix.platform == 'darwin/amd64'
         run: |
+          set -e
+          VERSION="${{ inputs.version }}"
+          echo "Building macOS AMD64 version $VERSION"
+          
           mkdir -p release
           go build -o release/update-helper-macos-amd64 ./cmd/update-helper
           chmod +x release/update-helper-macos-amd64
           
-          # Build AMD64 binary
-          wails build -platform darwin/amd64 -o PorkLauncher
+          # Build AMD64 binary (uses outputfilename from wails.json)
+          wails build -platform darwin/amd64
           
           # Check if build succeeded
           if [ ! -d "build/bin/HyLauncher.app" ]; then
             echo "ERROR: Build failed - HyLauncher.app not found"
+            ls -la build/bin/
             exit 1
           fi
           
           # Create DMG
           npm install -g create-dmg
           create-dmg \
-            --volname "PorkLauncher"
+            --volname "PorkLauncher" \
             --window-size 800 400 \
             --icon-size 100 \
             --app-drop-link 600 185 \
