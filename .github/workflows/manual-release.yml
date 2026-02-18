@@ -102,7 +102,7 @@ jobs:
           mkdir -p AppDir/usr/share/metainfo
           
           # Copy binary
-          cp build/bin/PorkLand AppDir/usr/bin/PorkLauncher
+          cp build/bin/HyLauncher AppDir/usr/bin/PorkLauncher
           chmod +x AppDir/usr/bin/PorkLauncher
           
           # Copy icon
@@ -128,7 +128,7 @@ jobs:
           mv HyLauncher*.AppImage release/PorkLauncher-linux-x86_64.AppImage
           
           # Also keep raw binary for backward compatibility
-          cp build/bin/PorkLand release/PorkLauncher-linux-x64
+          cp build/bin/HyLauncher release/PorkLauncher-linux-x64
           chmod +x release/PorkLauncher-linux-x64
 
       - name: Build (Windows)
@@ -144,11 +144,11 @@ jobs:
           
           # Build portable version
           wails build -platform windows/amd64
-          Copy-Item build/bin/PorkLand.exe release/PorkLauncher-windows-x64-portable.exe
+          Copy-Item build/bin/HyLauncher.exe release/PorkLauncher-windows-x64-portable.exe
           
           # Build NSIS installer version
           wails build -platform windows/amd64 -nsis -o PorkLauncher
-          Copy-Item build/bin/PorkLand-amd64-installer.exe release/PorkLauncher-windows-x64-setup.exe
+          Copy-Item build/bin/HyLauncher-amd64-installer.exe release/PorkLauncher-windows-x64-setup.exe
 
       - name: Build (macOS ARM64)
         if: matrix.platform == 'darwin/arm64'
@@ -161,8 +161,8 @@ jobs:
           wails build -platform darwin/arm64 -o PorkLauncher
           
           # Check if build succeeded
-          if [ ! -d "build/bin/PorkLand.app" ]; then
-            echo "ERROR: Build failed - PorkLand.app not found"
+          if [ ! -d "build/bin/HyLauncher.app" ]; then
+            echo "ERROR: Build failed - HyLauncher.app not found"
             exit 1
           fi
           
@@ -174,12 +174,12 @@ jobs:
             --icon-size 100 \
             --app-drop-link 600 185 \
             "release/PorkLauncher-macos-arm64.dmg" \
-            "build/bin/PorkLand.app" || true
+            "build/bin/HyLauncher.app" || true
           
           # If create-dmg fails, create zip as fallback
           if [ ! -f "release/PorkLauncher-macos-arm64.dmg" ]; then
             echo "DMG creation failed, creating ZIP fallback..."
-            cd build/bin && zip -r ../../release/PorkLauncher-macos-arm64.zip PorkLand.app
+            cd build/bin && zip -r ../../release/PorkLauncher-macos-arm64.zip HyLauncher.app
             cd ../..
           fi
           
@@ -203,8 +203,8 @@ jobs:
           wails build -platform darwin/amd64 -o PorkLauncher
           
           # Check if build succeeded
-          if [ ! -d "build/bin/PorkLand.app" ]; then
-            echo "ERROR: Build failed - PorkLand.app not found"
+          if [ ! -d "build/bin/HyLauncher.app" ]; then
+            echo "ERROR: Build failed - HyLauncher.app not found"
             exit 1
           fi
           
@@ -216,12 +216,12 @@ jobs:
             --icon-size 100 \
             --app-drop-link 600 185 \
             "release/PorkLauncher-macos-amd64.dmg" \
-            "build/bin/PorkLand.app" || true
+            "build/bin/HyLauncher.app" || true
           
           # If create-dmg fails, create zip as fallback
           if [ ! -f "release/PorkLauncher-macos-amd64.dmg" ]; then
             echo "DMG creation failed, creating ZIP fallback..."
-            cd build/bin && zip -r ../../release/PorkLauncher-macos-amd64.zip PorkLand.app
+            cd build/bin && zip -r ../../release/PorkLauncher-macos-amd64.zip HyLauncher.app
             cd ../..
           fi
           

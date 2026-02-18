@@ -79,19 +79,19 @@ jobs:
         env:
           CGO_ENABLED: 0
         run: |
-          wails build -platform linux/amd64 -tags webkit2_41
+          wails build -platform linux/amd64 -tags webkit2_41 -o HyLauncher
 
       - name: Build Wails app (Windows)
         if: startsWith(matrix.os, 'windows')
         env:
           CGO_ENABLED: 0
         run: |
-          wails build -platform windows/amd64
+          wails build -platform windows/amd64 -o HyLauncher
 
       - name: Build Wails app (macOS)
         if: startsWith(matrix.os, 'macos')
         run: |
-          wails build -platform darwin/universal
+          wails build -platform darwin/universal -o HyLauncher
 
       - uses: actions/upload-artifact@v4
         with:
