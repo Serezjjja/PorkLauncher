@@ -1,0 +1,101 @@
+      - name: Generate version manifest
+        run: |
+          VERSION="${{ inputs.version }}"
+          echo "Version: $VERSION"
+
+          mkdir -p release/checksums || true
+
+          # Функция для безопасного получения sha256
+          sha256_or_skip() {
+            local file="$1"
+            if [ -f "$file" ]; then
+              sha256sum "$file" | cut -d' ' -f1
+            else
+              echo "SKIP_FILE_NOT_FOUND"
+            fi
+          }
+
+          # ────────────────────────────────────────────────
+          # Собираем данные только если файлы реально есть
+          # ────────────────────────────────────────────────
+
+          LINUX_APPIMAGE="release/PorkLauncher-linux-x86_64.AppImage"
+          LINUX_APPIMAGE_SHA=$(sha256_or_skip "$LINUX_APPIMAGE")
+
+          LINUX_HELPER="release/update-helper-linux"
+          LINUX_HELPER_SHA=$(sha256_or_skip "$LINUX_HELPER")
+
+          WIN_PORTABLE="release/PorkLauncher-windows-x64-portable.exe"
+          WIN_PORTABLE_SHA=$(sha256_or_skip "$WIN_PORTABLE")
+
+          WIN_SETUP="release/PorkLauncher-windows-x64-setup.exe"
+          WIN_SETUP_SHA=$(sha256_or_skip "$WIN_SETUP")
+
+          WIN_HELPER="release/update-helper-windows.exe"
+          WIN_HELPER_SHA=$(sha256_or_skip "$WIN_HELPER")
+
+          # macOS ARM64
+          if [ -f "release/PorkLauncher-macos-arm64.dmg" ]; then
+            MAC_ARM_LAUNCHER="release/PorkLauncher-macos-arm64.dmg"
+            MAC_ARM_EXT="dmg"
+          elif [ -f "release/PorkLauncher-macos-arm64.zip" ]; then
+            MAC_ARM_LAUNCHER="release/PorkLauncher-macos-arm64.zip"
+            MAC_ARM_EXT="zip"
+          else
+            MAC_ARM_LAUNCHER=""
+            MAC_ARM_EXT=""
+          fi
+          MAC_ARM_LAUNCHER_SHA=$(sha256_or_skip "$MAC_ARM_LAUNCHER")
+          MAC_ARM_HELPER_SHA=$(sha256_or_skip "release/update-helper-macos-arm64")
+
+          # macOS AMD64 — аналогично
+          if [ -f "release/PorkLauncher-macos-amd64.dmg" ]; then
+            MAC_AMD_LAUNCHER="release/PorkLauncher-macos-amd64.dmg"
+            MAC_AMD_EXT="dmg"
+          elif [ -f "release/PorkLauncher-macos-amd64.zip" ]; then
+            MAC_AMD_LAUNCHER="release/PorkLauncher-macos-amd64.zip"
+            MAC_AMD_EXT="zip"
+          else
+            MAC_AMD_LAUNCHER=""
+            MAC_AMD_EXT=""
+          fi
+          MAC_AMD_LAUNCHER_SHA=$(sha256_or_skip "$MAC_AMD_LAUNCHER")
+          MAC_AMD_HELPER_SHA=$(sha256_or_skip "release/update-helper-macos-amd64")
+
+          # ────────────────────────────────────────────────
+          # Сам json
+          # ────────────────────────────────────────────────
+
+          cat > release/version.json << EOF
+          {
+            "version": "$VERSION",
+            "notes": "${{ inputs.notes || 'See GitHub Releases for details' }}",
+            "pub_date": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "linux": {
+              "amd64": {
+                "launcher": $( [ -f "$LINUX_APPIMAGE" ] && echo "{ \"url\": \"https://github.com/${{ github.repository }}/releases/download/v$VERSION/PorkLauncher-linux-x86_64.AppImage\", \"sha256\": \"$LINUX_APPIMAGE_SHA\" }" || echo "null" ),
+                "helper":   $( [ -f "$LINUX_HELPER"   ] && echo "{ \"url\": \"https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-linux\", \"sha256\": \"$LINUX_HELPER_SHA\"   }" || echo "null" )
+              }
+            },
+            "windows": {
+              "amd64": {
+                "portable": $( [ -f "$WIN_PORTABLE" ] && echo "{ \"url\": \"https://github.com/${{ github.repository }}/releases/download/v$VERSION/PorkLauncher-windows-x64-portable.exe\", \"sha256\": \"$WIN_PORTABLE_SHA\" }" || echo "null" ),
+                "setup":    $( [ -f "$WIN_SETUP"    ] && echo "{ \"url\": \"https://github.com/${{ github.repository }}/releases/download/v$VERSION/PorkLauncher-windows-x64-setup.exe\",    \"sha256\": \"$WIN_SETUP_SHA\"    }" || echo "null" ),
+                "helper":   $( [ -f "$WIN_HELPER"   ] && echo "{ \"url\": \"https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-windows.exe\",   \"sha256\": \"$WIN_HELPER_SHA\"   }" || echo "null" )
+              }
+            },
+            "darwin": {
+              "arm64": {
+                "launcher": $( [ -n "$MAC_ARM_LAUNCHER" ] && echo "{ \"url\": \"https://github.com/${{ github.repository }}/releases/download/v$VERSION/PorkLauncher-macos-arm64.$MAC_ARM_EXT\", \"sha256\": \"$MAC_ARM_LAUNCHER_SHA\" }" || echo "null" ),
+                "helper":   "{ \"url\": \"https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-macos-arm64\", \"sha256\": \"$MAC_ARM_HELPER_SHA\" }"
+              },
+              "amd64": {
+                "launcher": $( [ -n "$MAC_AMD_LAUNCHER" ] && echo "{ \"url\": \"https://github.com/${{ github.repository }}/releases/download/v$VERSION/PorkLauncher-macos-amd64.$MAC_AMD_EXT\", \"sha256\": \"$MAC_AMD_LAUNCHER_SHA\" }" || echo "null" ),
+                "helper":   "{ \"url\": \"https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-macos-amd64\", \"sha256\": \"$MAC_AMD_HELPER_SHA\" }"
+              }
+            }
+          }
+          EOF
+
+          # Показываем результат для отладки
+          cat release/version.json | jq . || cat release/version.json
