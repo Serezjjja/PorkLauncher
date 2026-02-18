@@ -120,8 +120,8 @@ jobs:
           cp build/appicon.png AppDir/usr/share/icons/hicolor/512x512/apps/PorkLauncher.png
           
           # Copy existing desktop file
-          cp PorkLauncher.desktop AppDir/usr/share/applications/
-          sed -i 's|Exec=/usr/bin/PorkLauncher|Exec=PorkLauncher|' AppDir/usr/share/applications/PorkLauncher.desktop
+          cp HyLauncher.desktop AppDir/usr/share/applications/PorkLauncher.desktop
+          sed -i 's|Exec=/usr/bin/HyLauncher|Exec=PorkLauncher|' AppDir/usr/share/applications/PorkLauncher.desktop
           cp AppDir/usr/share/applications/PorkLauncher.desktop AppDir/
           
           # Force bundling of WebKit2GTK helper processes
