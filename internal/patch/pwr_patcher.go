@@ -1,0 +1,292 @@
+package patch
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"time"
+
+	"HyLauncher/internal/env"
+	"HyLauncher/internal/platform"
+	"HyLauncher/internal/progress"
+	"HyLauncher/pkg/download"
+	"HyLauncher/pkg/logger"
+)
+
+type PatchRequest struct {
+	OS      string `json:"os"`
+	Arch    string `json:"arch"`
+	Branch  string `json:"branch"`
+	Version string `json:"version"`
+}
+
+type PatchStep struct {
+	From    int    `json:"from"`
+	To      int    `json:"to"`
+	PWR     string `json:"pwr"`
+	PWRHead string `json:"pwrHead"`
+	Sig     string `json:"sig"`
+}
+
+type PatchStepsResponse struct {
+	Steps []PatchStep `json:"steps"`
+}
+
+func DownloadAndApplyPWR(ctx context.Context, branch string, currentVer int, targetVer int, versionDir string, reporter *progress.Reporter) error {
+	logger.Info("Starting patch download", "branch", branch, "from", currentVer, "to", targetVer)
+
+	var pwrPath string
+
+	steps, err := fetchPatchSteps(ctx, branch, currentVer)
+	if err != nil {
+		logger.Error("Failed to fetch patch steps", "branch", branch, "error", err)
+		return fmt.Errorf("fetch patch steps: %w", err)
+	}
+
+	if len(steps) == 0 {
+		logger.Warn("No patch steps available", "branch", branch, "currentVer", currentVer)
+		return fmt.Errorf("no patch steps available")
+	}
+
+	logger.Info("Found patch steps", "count", len(steps), "branch", branch)
+	for i, step := range steps {
+		logger.Info("  Step", "index", i, "from", step.From, "to", step.To)
+	}
+
+	for i, step := range steps {
+		if targetVer > 0 && step.From >= targetVer {
+			logger.Info("Reached target version, stopping", "target", targetVer, "current", step.From)
+			break
+		}
+
+		logger.Info("Downloading patch", "from", step.From, "to", step.To, "progress", fmt.Sprintf("%d/%d", i+1, len(steps)))
+
+		if reporter != nil {
+			reporter.Report(progress.StagePatch, 0, fmt.Sprintf("Patching %d → %d (%d/%d)", step.From, step.To, i+1, len(steps)))
+		}
+
+		pwrPath, sigPath, err := downloadPatchStep(ctx, step, reporter)
+		if err != nil {
+			logger.Error("Failed to download patch", "from", step.From, "to", step.To, "error", err)
+			return fmt.Errorf("download patch step %d→%d: %w", step.From, step.To, err)
+		}
+
+		logger.Info("Applying patch", "from", step.From, "to", step.To)
+		if err := applyPWR(ctx, pwrPath, sigPath, branch, versionDir, reporter); err != nil {
+			_ = os.Remove(pwrPath)
+			_ = os.Remove(sigPath)
+			logger.Error("Failed to apply patch", "from", step.From, "to", step.To, "error", err)
+			return fmt.Errorf("apply patch %d→%d: %w", step.From, step.To, err)
+		}
+
+		logger.Info("Patch applied successfully", "from", step.From, "to", step.To)
+	}
+
+	_ = os.RemoveAll(pwrPath)
+	logger.Info("All patches applied", "totalSteps", len(steps))
+
+	return nil
+}
+
+func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string, version string, reporter *progress.Reporter) error {
+	gameDir := env.GetGameDir(branch, version)
+	stagingDir := filepath.Join(env.GetCacheDir(), "staging-temp")
+	_ = os.RemoveAll(stagingDir)
+
+	_ = os.MkdirAll(gameDir, 0755)
+	_ = os.MkdirAll(stagingDir, 0755)
+
+	// Log what files are currently in the game directory
+	logger.Info("Game directory contents before patch", "dir", gameDir)
+	entries, _ := os.ReadDir(gameDir)
+	for _, entry := range entries {
+		logger.Info("  File", "name", entry.Name(), "isDir", entry.IsDir())
+	}
+
+	butlerPath, err := GetButlerExec()
+	if err != nil {
+		return fmt.Errorf("cannot get butler: %w", err)
+	}
+
+	logger.Info("Running butler apply", "pwr", pwrFile, "sig", sigFile, "gameDir", gameDir, "stagingDir", stagingDir)
+
+	// Create a timeout context for butler apply (30 minutes max)
+	applyCtx, cancel := context.WithTimeout(ctx, 30*time.Minute)
+	defer cancel()
+
+	cmd := exec.CommandContext(applyCtx, butlerPath,
+		"apply",
+		"--staging-dir", stagingDir,
+		"--signature", sigFile,
+		pwrFile,
+		gameDir,
+	)
+
+	platform.HideConsoleWindow(cmd)
+
+	// Capture output for logging
+	var stdoutBuf, stderrBuf bytes.Buffer
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
+
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		_ = os.RemoveAll(stagingDir)
+		return fmt.Errorf("failed to start butler: %w", err)
+	}
+
+	// Progress updater goroutine - sends periodic updates while butler is running
+	progressDone := make(chan struct{})
+	go func() {
+		defer close(progressDone)
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+
+		prog := 60.0
+		direction := 0.5 // Increment to show activity
+
+		for {
+			select {
+			case <-ticker.C:
+				if reporter != nil {
+					// Oscillate progress between 60% and 75% to show activity
+					prog += direction
+					if prog >= 75.0 {
+						prog = 75.0
+						direction = -0.5
+					} else if prog <= 60.0 {
+						prog = 60.0
+						direction = 0.5
+					}
+					reporter.Report(progress.StagePatch, prog, "Applying game patch...")
+				}
+			case <-applyCtx.Done():
+				return
+			}
+		}
+	}()
+
+	// Wait for command to complete
+	err = cmd.Wait()
+
+	// Stop progress updater
+	cancel()
+	<-progressDone
+
+	if err != nil {
+		_ = os.RemoveAll(stagingDir)
+		stdoutStr := stdoutBuf.String()
+		stderrStr := stderrBuf.String()
+		logger.Error("Butler apply failed", "error", err, "stdout", stdoutStr, "stderr", stderrStr)
+
+		// Check for timeout
+		if applyCtx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("butler apply timed out after 30 minutes - the patch may be too large or stuck")
+		}
+
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return fmt.Errorf("butler apply failed with exit code %d: stderr=%s", exitErr.ExitCode(), stderrStr)
+		}
+		return fmt.Errorf("butler apply failed: %w", err)
+	}
+
+	logger.Info("Butler apply completed", "stdout", stdoutBuf.String())
+
+	_ = os.RemoveAll(stagingDir)
+
+	if reporter != nil {
+		reporter.Report(progress.StagePatch, 80, "Game patched!")
+	}
+	return nil
+}
+
+func fetchPatchSteps(ctx context.Context, branch string, currentVer int) ([]PatchStep, error) {
+	reqBody := PatchRequest{
+		OS:      env.GetOS(),
+		Arch:    env.GetArchForAPI(),
+		Branch:  branch,
+		Version: strconv.Itoa(currentVer),
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.hylauncher.fun/v1/pwr", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	var result PatchStepsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return result.Steps, nil
+}
+
+func downloadPatchStep(ctx context.Context, step PatchStep, reporter *progress.Reporter) (pwrPath string, sigPath string, err error) {
+	cacheDir := env.GetCacheDir()
+	_ = os.MkdirAll(cacheDir, 0755)
+
+	pwrFileName := fmt.Sprintf("%d_to_%d.pwr", step.From, step.To)
+	sigFileName := fmt.Sprintf("%d_to_%d.pwr.sig", step.From, step.To)
+
+	pwrDest := filepath.Join(cacheDir, pwrFileName)
+	sigDest := filepath.Join(cacheDir, sigFileName)
+
+	_, pwrErr := os.Stat(pwrDest)
+	_, sigErr := os.Stat(sigDest)
+	if pwrErr == nil && sigErr == nil {
+		if reporter != nil {
+			reporter.Report(progress.StagePWR, 100, "Patch files cached")
+		}
+		return pwrDest, sigDest, nil
+	}
+
+	if reporter != nil {
+		reporter.Report(progress.StagePWR, 0, fmt.Sprintf("Downloading patch %d→%d...", step.From, step.To))
+	}
+
+	pwrScaler := progress.NewScaler(reporter, progress.StagePWR, 0, 70)
+	if err := download.DownloadWithReporter(ctx, pwrDest, step.PWR, pwrFileName, reporter, progress.StagePWR, pwrScaler); err != nil {
+		_ = os.Remove(pwrDest + ".tmp")
+		return "", "", fmt.Errorf("download PWR: %w", err)
+	}
+
+	if reporter != nil {
+		reporter.Report(progress.StagePWR, 70, "Downloading signature...")
+	}
+
+	sigScaler := progress.NewScaler(reporter, progress.StagePWR, 70, 100)
+	if err := download.DownloadWithReporter(ctx, sigDest, step.Sig, sigFileName, reporter, progress.StagePWR, sigScaler); err != nil {
+		_ = os.Remove(sigDest + ".tmp")
+		return "", "", fmt.Errorf("download signature: %w", err)
+	}
+
+	if reporter != nil {
+		reporter.Report(progress.StagePWR, 100, "Patch files downloaded")
+	}
+
+	return pwrDest, sigDest, nil
+}

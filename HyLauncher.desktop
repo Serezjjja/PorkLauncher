@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=HyLauncher
+Comment=Unofficial Hytale Launcher for free to play gamers
+Exec=/usr/bin/HyLauncher
+Icon=HyLauncher
+Categories=Game;Utility;
+Keywords=hytale;launcher;gaming;mods;
+Terminal=false
+StartupNotify=true

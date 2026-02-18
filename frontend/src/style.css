@@ -1,0 +1,755 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Mazzard";
+  src: url("./assets/fonts/Mazzard/MazzardM-Regular.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MazzardM-Medium";
+  src: url("./assets/fonts/Mazzard/MazzardM-Medium.woff2") format("woff2");
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MazzardM-Semibold";
+  src: url("./assets/fonts/Mazzard/MazzardM-SemiBold.woff2") format("woff2");
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Ensure the app is perfectly contained for frameless windows */
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: transparent; /* Let the React container handle the BG */
+}
+
+body {
+  font-family:
+    "MazzardM-Semibold",
+    "MazzardM-Medium",
+    "Mazzard",
+    "Unbounded",
+    "Segoe UI",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Roboto",
+    "Oxygen",
+    "Ubuntu",
+    "Cantarell",
+    "Fira Sans",
+    "Droid Sans",
+    "Helvetica Neue",
+    sans-serif;
+}
+
+@keyframes glow {
+  0%,
+  100% {
+    opacity: 0.8;
+    filter: drop-shadow(0 0 5px #fff);
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 12px #fff);
+  }
+}
+
+@keyframes neon-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 5px rgba(93, 139, 87, 0.5), 0 0 10px rgba(93, 139, 87, 0.3), 0 0 20px rgba(93, 139, 87, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(93, 139, 87, 0.8), 0 0 20px rgba(93, 139, 87, 0.5), 0 0 40px rgba(93, 139, 87, 0.3);
+  }
+}
+
+@keyframes neon-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 8px rgba(93, 139, 87, 0.8)) drop-shadow(0 0 16px rgba(93, 139, 87, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(93, 139, 87, 1)) drop-shadow(0 0 32px rgba(93, 139, 87, 0.8));
+  }
+}
+
+@keyframes energy-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes particle-float {
+  0%,
+  100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(20px);
+    opacity: 0;
+  }
+}
+
+@keyframes magical-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.progress-glow {
+  animation: glow 2s infinite ease-in-out;
+  will-change: opacity, filter;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Fantasy Magic Theme - Glassmorphism Utilities */
+.glass-panel {
+  background: rgba(54, 78, 58, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(93, 139, 87, 0.3);
+  border-radius: 20px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.glass-panel-floating {
+  background: rgba(54, 78, 58, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(93, 139, 87, 0.35);
+  border-radius: 24px;
+  box-shadow: 
+    0 12px 48px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(93, 139, 87, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* Neon accent colors - Green Theme */
+.neon-green-primary {
+  color: #5D8B57;
+  text-shadow: 0 0 10px rgba(93, 139, 87, 0.8), 0 0 20px rgba(93, 139, 87, 0.5);
+}
+
+.neon-green-light {
+  color: #7AB872;
+  text-shadow: 0 0 10px rgba(122, 184, 114, 0.8), 0 0 20px rgba(122, 184, 114, 0.5);
+}
+
+.neon-green-dark {
+  color: #364E3A;
+  text-shadow: 0 0 10px rgba(54, 78, 58, 0.8), 0 0 20px rgba(54, 78, 58, 0.5);
+}
+
+/* Glow effects */
+.glow-green-primary {
+  box-shadow: 0 0 20px rgba(93, 139, 87, 0.4), 0 0 40px rgba(93, 139, 87, 0.2);
+}
+
+.glow-green-light {
+  box-shadow: 0 0 20px rgba(122, 184, 114, 0.4), 0 0 40px rgba(122, 184, 114, 0.2);
+}
+
+.glow-active {
+  animation: neon-glow 2s infinite ease-in-out;
+}
+
+/* Particle effect container */
+.particles-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: radial-gradient(circle, rgba(93, 139, 87, 0.8) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: particle-float 8s infinite ease-in-out;
+}
+
+/* Energy beam progress bar - Green Theme */
+.energy-beam {
+  background: linear-gradient(90deg, 
+    rgba(54, 78, 58, 0.5) 0%, 
+    rgba(93, 139, 87, 0.8) 50%, 
+    rgba(122, 184, 114, 1) 100%);
+  box-shadow: 
+    0 0 10px rgba(93, 139, 87, 0.8),
+    0 0 20px rgba(93, 139, 87, 0.5),
+    0 0 30px rgba(122, 184, 114, 0.3);
+  position: relative;
+}
+
+.energy-beam::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  background: radial-gradient(circle, #fff 0%, #7AB872 50%, transparent 70%);
+  border-radius: 50%;
+  box-shadow: 
+    0 0 15px #7AB872,
+    0 0 30px rgba(122, 184, 114, 0.8),
+    0 0 45px rgba(122, 184, 114, 0.5);
+  animation: neon-pulse 1.5s infinite ease-in-out;
+}
+
+/* Shimmer effect for buttons */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: magical-shimmer 3s infinite linear;
+}
+
+/* GPU acceleration for animated elements */
+[data-framer-component],
+.motion-div {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Backdrop blur support for all platforms including WebKit */
+/* Always apply blur with vendor prefixes for maximum compatibility */
+
+/* 12px blur - Used in most UI elements */
+.backdrop-blur-\[12px\],
+[class*="backdrop-blur-\[12px\]"] {
+  -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+/* 6px blur - Used in dropdowns */
+.backdrop-blur-\[6px\],
+[class*="backdrop-blur-\[6px\]"] {
+  -webkit-backdrop-filter: blur(6px) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+/* 14px blur - Used in settings overlay */
+.backdrop-blur-\[14px\],
+[class*="backdrop-blur-\[14px\]"] {
+  -webkit-backdrop-filter: blur(14px) !important;
+  backdrop-filter: blur(14px) !important;
+}
+
+/* Tailwind standard sizes */
+.backdrop-blur-sm {
+  -webkit-backdrop-filter: blur(4px) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+.backdrop-blur-xl {
+  -webkit-backdrop-filter: blur(24px) !important;
+  backdrop-filter: blur(24px) !important;
+}
+
+.backdrop-blur-2xl {
+  -webkit-backdrop-filter: blur(40px) !important;
+  backdrop-filter: blur(40px) !important;
+}
+
+/* Fallback for browsers without backdrop-filter support */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  /* When backdrop-filter is not supported, use more opaque backgrounds */
+  [class*="backdrop-blur"] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  
+  /* Increase background opacity for better visibility without blur */
+  [class*="bg-\[#090909\]/55"],
+  [class*="bg-\[#090909\]/\[0\.55\]"],
+  [class*="backdrop-blur-\[12px\]"] {
+    background-color: rgba(9, 9, 9, 0.88) !important;
+  }
+  
+  [class*="bg-\[#090909\]/\[0\.75\]"] {
+    background-color: rgba(9, 9, 9, 0.92) !important;
+  }
+  
+  [class*="bg-\[#090909\]/95"],
+  [class*="bg-\[#090909\]/\[0\.95\]"] {
+    background-color: rgba(9, 9, 9, 0.98) !important;
+  }
+  
+  [class*="bg-black/70"] {
+    background-color: rgba(0, 0, 0, 0.85) !important;
+  }
+  
+  [class*="bg-black/80"] {
+    background-color: rgba(0, 0, 0, 0.90) !important;
+  }
+}
+
+/* Optimize hover transitions */
+.hover\:scale-102 {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Fix for Webkit (Linux/macOS) to prevent text selection while dragging */
+[style*="--wails-draggable:drag"] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* WebKit-specific fixes for backdrop blur */
+/* Create proper stacking context for blurred elements */
+[class*="backdrop-blur"] {
+  /* Force GPU layer creation */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  
+  /* Ensure the element can be blurred */
+  isolation: isolate;
+}
+
+
+
+/* Force GPU acceleration for common animated properties */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optimize transforms */
+[class*="scale-"],
+[class*="translate-"],
+[class*="rotate-"] {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Windows-specific rendering fixes */
+/* Ensure small elements render properly */
+button,
+[role="button"],
+a[role="button"] {
+  min-height: 1px;
+  min-width: 1px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Fix for small icons and SVG elements on Windows */
+svg {
+  shape-rendering: geometricPrecision;
+  text-rendering: geometricPrecision;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* Ensure borders render correctly on Windows */
+[class*="border"] {
+  border-style: solid;
+}
+
+/* Fix for small text rendering */
+[class*="text-\[14px\]"],
+[class*="text-\[16px\]"],
+[class*="text-xs"],
+[class*="text-sm"] {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ==================== DISCORD WIDGET ==================== */
+.discord-widget {
+  background-color: rgba(20, 24, 21, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  width: 220px;
+  min-height: 160px;
+  padding: 16px;
+  border-radius: 16px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.3s ease, border-color 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.discord-widget:hover {
+  transform: translateY(-5px);
+  border-color: rgba(88, 101, 242, 0.3);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+/* Background Discord Icon */
+.discord-bg-icon {
+  position: absolute;
+  top: -15px;
+  right: -15px;
+  opacity: 0.05;
+  transform: rotate(15deg);
+  pointer-events: none;
+  width: 120px;
+  height: 120px;
+  fill: white;
+  transition: all 0.4s ease;
+}
+
+.discord-widget:hover .discord-bg-icon {
+  fill: #5865F2;
+  opacity: 0.15;
+  transform: rotate(15deg) scale(1.05);
+  filter: drop-shadow(0 0 20px rgba(88, 101, 242, 0.5));
+}
+
+/* Header */
+.discord-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  z-index: 2;
+}
+
+.discord-logo-wrap {
+  width: 38px;
+  height: 38px;
+  background-color: rgba(88, 101, 242, 0.2);
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid rgba(88, 101, 242, 0.3);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.discord-logo-wrap::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background-color: #7AB872;
+  border: 2px solid rgba(20, 24, 21, 1);
+  border-radius: 50%;
+}
+
+.discord-logo-wrap svg {
+  width: 20px;
+  height: 20px;
+  fill: #5865F2;
+}
+
+.discord-info h3 {
+  margin: 0;
+  font-size: 14px;
+  color: #ffffff;
+  font-weight: 700;
+  font-family: 'MazzardM-Semibold', 'MazzardM-Medium', sans-serif;
+}
+
+.discord-info p {
+  margin: 2px 0 0 0;
+  font-size: 11px;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'MazzardM-Medium', sans-serif;
+}
+
+.online-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #7AB872;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(122, 184, 114, 0.5);
+}
+
+/* Members List */
+.members-list {
+  display: flex;
+  align-items: center;
+  margin-left: 6px;
+  height: 28px;
+  position: relative;
+  z-index: 2;
+}
+
+.member-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid rgba(20, 24, 21, 0.9);
+  margin-left: -8px;
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.2s ease, z-index 0s;
+  cursor: pointer;
+  background-color: #252b27;
+  flex-shrink: 0;
+}
+
+.member-avatar:hover {
+  transform: scale(1.15) translateY(-3px);
+  z-index: 10;
+  border-color: #5D8B57;
+}
+
+.more-members {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: #252b27;
+  color: #9ca3af;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 2px solid rgba(20, 24, 21, 0.9);
+  margin-left: -8px;
+  z-index: 5;
+  font-family: 'MazzardM-Medium', sans-serif;
+  flex-shrink: 0;
+}
+
+/* Join Button */
+.discord-btn {
+  text-decoration: none;
+  width: 100%;
+  background-color: #252b27;
+  color: #9ca3af;
+  border: none;
+  padding: 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 11px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.3s ease, transform 0.1s ease;
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+  font-family: 'MazzardM-Semibold', 'MazzardM-Medium', sans-serif;
+  margin-top: auto;
+}
+
+.discord-btn:hover {
+  text-decoration: none;
+  background: linear-gradient(90deg, #4752c4, #5865F2, #969cf2, #5865F2, #4752c4);
+  background-size: 300% 100%;
+  animation: discord-shimmer 3s linear infinite;
+  color: white;
+  box-shadow: 0 0 15px rgba(88, 101, 242, 0.6);
+  transform: translateY(-2px);
+}
+
+.discord-btn:active {
+  transform: scale(0.98);
+}
+
+@keyframes discord-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ==================== TELEGRAM WIDGET ==================== */
+.telegram-widget {
+  background-color: rgba(20, 24, 21, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  width: 220px;
+  min-height: 160px;
+  padding: 16px;
+  border-radius: 16px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.3s ease, border-color 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.telegram-widget:hover {
+  transform: translateY(-5px);
+  border-color: rgba(34, 158, 217, 0.3);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+/* Background Telegram Icon */
+.telegram-bg-icon {
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 110px;
+  height: 110px;
+  opacity: 0.05;
+  filter: grayscale(100%) brightness(200%);
+  transform: rotate(-10deg);
+  pointer-events: none;
+  transition: all 0.4s ease;
+}
+
+.telegram-widget:hover .telegram-bg-icon {
+  opacity: 0.15;
+  filter: grayscale(0%) brightness(100%) drop-shadow(0 0 20px rgba(34, 158, 217, 0.5));
+  transform: rotate(-10deg) scale(1.05) translate(-5px, 5px);
+}
+
+/* Header */
+.tg-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  z-index: 2;
+}
+
+.tg-logo-wrap {
+  width: 38px;
+  height: 38px;
+  background-color: rgba(34, 158, 217, 0.2);
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid rgba(34, 158, 217, 0.3);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.tg-logo-wrap::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background-color: #7AB872;
+  border: 2px solid rgba(20, 24, 21, 1);
+  border-radius: 50%;
+}
+
+.tg-logo-wrap img {
+  width: 22px;
+  height: 22px;
+}
+
+.tg-info h3 {
+  margin: 0;
+  font-size: 14px;
+  color: #ffffff;
+  font-weight: 700;
+  font-family: 'MazzardM-Semibold', 'MazzardM-Medium', sans-serif;
+}
+
+.tg-info p {
+  margin: 2px 0 0 0;
+  font-size: 11px;
+  color: #9ca3af;
+  font-family: 'MazzardM-Medium', sans-serif;
+}
+
+/* Join Button */
+.tg-btn {
+  text-decoration: none;
+  width: 100%;
+  background-color: #252b27;
+  color: #9ca3af;
+  border: none;
+  padding: 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 11px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.3s ease, transform 0.1s ease;
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+  font-family: 'MazzardM-Semibold', 'MazzardM-Medium', sans-serif;
+  margin-top: auto;
+}
+
+.tg-btn:hover {
+  background: linear-gradient(90deg, #1c7ca6, #229ED9, #6ecbf5, #229ED9, #1c7ca6);
+  background-size: 300% 100%;
+  animation: tg-shimmer 3s linear infinite;
+  color: white;
+  box-shadow: 0 0 15px rgba(34, 158, 217, 0.6);
+  transform: translateY(-2px);
+}
+
+.tg-btn:active {
+  transform: scale(0.98);
+}
+
+@keyframes tg-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}

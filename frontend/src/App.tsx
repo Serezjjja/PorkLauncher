@@ -1,0 +1,121 @@
+import React, { useState, useEffect } from "react";
+import Titlebar from "./components/Titlebar";
+import Navbar from "./components/Navbar";
+import { SettingsOverlay } from "./components/SettingsOverlay";
+import { AnimatePresence, motion, cubicBezier } from "framer-motion";
+import { getDefaultPage, getPageById } from "./config/pages";
+import { useTranslation } from "./i18n";
+import { useLauncher } from "./hooks/useLauncher";
+
+const bgTransition = {
+  duration: 0.45,
+  ease: cubicBezier(0.16, 1, 0.3, 1),
+};
+
+import { SettingsOverlayContext } from "./context/SettingsOverlayContext";
+import { NavigationProvider } from "./context/NavigationContext";
+
+const App: React.FC = () => {
+  const { t } = useTranslation();
+  const { launcherVersion } = useLauncher();
+  const [activeTab, setActiveTab] = useState(getDefaultPage(t).id);
+  const [showSettingsOverlay, setShowSettingsOverlay] = useState(false);
+
+  useEffect(() => {
+    console.log("Active tab changed to:", activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    setShowSettingsOverlay(false);
+  }, [activeTab]);
+
+  const page = getPageById(activeTab, t);
+  const Background = page?.background;
+
+  return (
+    <SettingsOverlayContext.Provider value={showSettingsOverlay}>
+      <NavigationProvider onNavigate={setActiveTab}>
+        <div className="relative w-screen h-screen max-w-[1280px] max-h-[720px] bg-[#1C2A1F] text-white overflow-hidden font-sans select-none rounded-[16px] border border-[#5D8B57]/[0.2] mx-auto shadow-[0_0_60px_rgba(93,139,87,0.15),0_0_120px_rgba(0,0,0,0.5)]">
+        {/* BACKGROUND */}
+        <div className="absolute inset-0 pointer-events-none">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              className="absolute inset-0"
+              style={{
+                willChange: "opacity, transform, filter",
+                transform: "translateZ(0)",
+                backfaceVisibility: "hidden",
+                perspective: "1000px",
+              }}
+              initial={{ opacity: 0, scale: 1.02 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.01 }}
+              transition={{ ...bgTransition, filter: { duration: 0 } }}
+            >
+              {Background ? <Background /> : null}
+              <div className="absolute inset-0 bg-gradient-to-b from-[#1C2A1F]/30 via-transparent to-[#1C2A1F]/50" />
+              <div className="absolute inset-0 [box-shadow:inset_0_0_120px_rgba(28,42,31,0.5)]" />
+              <div className="absolute inset-0 opacity-[0.04] mix-blend-overlay noise-layer" />
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        <Navbar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onSettingsClick={() => setShowSettingsOverlay(true)}
+        />
+        <Titlebar />
+
+        {/* Launcher version */}
+        <div className="absolute right-[20px] bottom-[20px] text-white/30 text-[14px] font-[Mazzard] drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">
+          v{launcherVersion}
+        </div>
+
+        {/* Settings Overlay */}
+        <SettingsOverlay
+          isOpen={showSettingsOverlay}
+          onClose={() => setShowSettingsOverlay(false)}
+          launcherVersion={launcherVersion}
+        />
+
+        {/* PAGE CONTENT */}
+        <AnimatePresence mode="wait">
+          {(() => {
+            if (!page) {
+              console.error("Page not found for id:", activeTab);
+              return null;
+            }
+
+            const PageComponent = page.component;
+
+            return (
+              <motion.div
+                key={activeTab}
+                style={{
+                  willChange: "opacity, transform",
+                  transform: "translateZ(0)",
+                  backfaceVisibility: "hidden",
+                }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{
+                  duration: 0.25,
+                  ease: cubicBezier(0.16, 1, 0.3, 1),
+                }}
+                className="h-full w-full"
+              >
+                <PageComponent />
+              </motion.div>
+            );
+          })()}
+        </AnimatePresence>
+        </div>
+      </NavigationProvider>
+    </SettingsOverlayContext.Provider>
+  );
+};
+
+export default App;
