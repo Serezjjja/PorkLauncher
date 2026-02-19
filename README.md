@@ -1,9 +1,11 @@
-# HyLauncher - Free Hytale Launcher
+# PorkLauncher
+
+Лаунчер сервера PorkLand, based on ArchDev HyLauncher.
 
 ## For demo only. Support Hytale developers!
 
 <p align="center">
-  <img src="build/appicon.png" alt="HyLauncher" width="128"/>
+  <img src="build/appicon.png" alt="PorkLauncher" width="128"/>
 </p>
 
 <p align="center">
@@ -11,10 +13,8 @@
   <i>Неофициальный Hytale лаунчер</i>
 </p>
 <p align="center">
-  <a href="https://github.com/ArchDevs/HyLauncher/releases"><img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/ArchDevs/HyLauncher/total?style=flat-square"></a>
+  <a href="https://github.com/Serezjjja/PorkLauncher/releases"><img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/Serezjjja/PorkLauncher/total?style=flat-square"></a>
   <img src="https://img.shields.io/badge/License-GPL_3.0-yellow?style=flat-square"/>
-  <a href="https://dsc.gg/hylauncher"><img alt="Static Badge" src="https://img.shields.io/badge/Discord-Link-blue?style=flat-square&logo=discord"></a>
-  <a href="https://t.me/hylauncher"><img alt="Static Badge" src="https://img.shields.io/badge/Telegram-Link-lightblue?logo=telegram&style=flat-square"></a>
 </p>
 
 ---
@@ -24,15 +24,15 @@
 - Онлайн режим
 - Скачивание игры
 - Скачивание всех зависимостей
-- Униклальные идентификаторы ников (каждый ник уникальный)
-- Поддержка всех платформ Windows/Linux/MacOS
+- Уникальные идентификаторы ников (каждый ник уникальный)
+- Поддержка Windows и macOS
 
 ---
 
 ## Установка
 
-Переходим в раздел [releases](https://github.com/ArchDevs/HyLauncher/releases). <br>
-Скачиваем самую [последнюю версию](https://github.com/ArchDevs/HyLauncher/releases/latest) лаунчера. <br>
+Переходим в раздел [releases](https://github.com/Serezjjja/PorkLauncher/releases). <br>
+Скачиваем самую [последнюю версию](https://github.com/Serezjjja/PorkLauncher/releases/latest) лаунчера. <br>
 Не нужно скачивать `update-helper(.exe)`
 
 ---
@@ -41,23 +41,16 @@
 
 Зависимости
 - Golang 1.24+
-- NodeJS 22+
+- NodeJS 24+
 
-### Linux make
-Билд и установка через `make`
-```bash
-git clone https://github.com/ArchDevs/HyLauncher.git
-cd HyLauncher
-makepkg -sric
+### Windows
 ```
-### Linux / MacOS / Windows
+git clone https://github.com/Serezjjja/PorkLauncher.git
+cd PorkLauncher
+go install github.com/wailsapp/wails/v2/cmd/wails@latest
+wails build -platform windows/amd64
 ```
-git clone https://github.com/ArchDevs/HyLauncher.git
-cd HyLauncher
-go install github.com/wailsapp/wails/v2/cmd/wails@v2.11.0
-wails build
-```
-Билд появится в папка `build/bin`
+Билд появится в папке `build/bin`
 
 ### macOS
 
@@ -78,8 +71,8 @@ If you get "Hytale.app is corrupted" error when launching the game:
 1. The launcher automatically tries to fix permissions - just try launching again
 2. If it still fails, manually run:
    ```bash
-   xattr -cr ~/Library/Application\ Support/HyLauncher/shared/games/release/*/Client/Hytale.app
-   codesign --force --deep --sign - ~/Library/Application\ Support/HyLauncher/shared/games/release/*/Client/Hytale.app
+   xattr -cr ~/Library/Application\ Support/PorkLauncher/shared/games/release/*/Client/Hytale.app
+   codesign --force --deep --sign - ~/Library/Application\ Support/PorkLauncher/shared/games/release/*/Client/Hytale.app
    ```
 3. Or disable Gatekeeper temporarily: `sudo spctl --master-disable` (re-enable after with `sudo spctl --master-enable`)
 
@@ -102,15 +95,14 @@ macOS builds are handled automatically by GitHub Actions. The workflow builds un
 
 ## Authors
 
-- [@ArchDevs](https://www.github.com/ArchDevs) (Founder)
-- [@ronitmb](https://github.com/ronitmb) (Design & Idea & Founder & Frontend)
+- [@Serezjjja](https://www.github.com/Serezjjja) (Developer)
 
 ## Star History
 
-<a href="https://www.star-history.com/#ArchDevs/HyLauncher&type=date&legend=top-left">
+<a href="https://www.star-history.com/#Serezjjja/PorkLauncher&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=ArchDevs/HyLauncher&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=ArchDevs/HyLauncher&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=ArchDevs/HyLauncher&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Serezjjja/PorkLauncher&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Serezjjja/PorkLauncher&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Serezjjja/PorkLauncher&type=date&legend=top-left" />
  </picture>
 </a>
