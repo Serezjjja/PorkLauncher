@@ -23,7 +23,7 @@ const (
 	originalDomain   = "hytale.com"
 	minDomainLength  = 4
 	maxDomainLength  = 10
-	defaultNewDomain = "sanasol.ws"
+	defaultNewDomain = "porkln.fun"
 )
 
 type ClientPatcher struct {

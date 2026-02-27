@@ -32,8 +32,8 @@ func (s *ServersService) FetchServers() ([]ServerWithUrls, error) {
 		{
 			Server: Server{
 				ID:          1,
-				Name:        "PorkLand",                                        // Change to your server name
-				Description: "Супер пупер сервер HyTale",                       // Change description
+				Name:        "PorkLand", // Change to your server name
+				Description: "",
 				Logo:        "https://porkland.net/storage/img/logoresize.png", // URL to logo image or empty
 				Banner:      "https://porkland.net/storage/img/bg2.jpg",        // URL to banner image or empty
 				IP:          "play.porkland.net:5520",                          // Change to your server IP

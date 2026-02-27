@@ -39,7 +39,7 @@ func NewGameService(ctx context.Context, reporter *progress.Reporter, svc *AuthS
 		ctx:        ctx,
 		reporter:   reporter,
 		authSvc:    svc,
-		authDomain: "sanasol.ws",
+		authDomain: "porkln.fun",
 	}
 }
 
@@ -348,7 +348,10 @@ func (s *GameService) applyAuthPatch(branch, version string, reporter *progress.
 	return nil
 }
 
-func (s *GameService) Launch(playerName string, request model.InstanceModel, serverIP ...string) error {
+// GameExitedCallback is called when the game process exits
+type GameExitedCallback func()
+
+func (s *GameService) Launch(playerName string, request model.InstanceModel, onGameExit GameExitedCallback, serverIP ...string) error {
 	session, err := s.authSvc.FetchGameSession(playerName)
 	if err != nil {
 		return err
@@ -411,7 +414,6 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel, ser
 	}
 
 	if runtime.GOOS == "darwin" {
-		_ = cmd.Process.Release()
 		_ = platform.RemoveQuarantine(clientPath)
 	}
 
@@ -426,6 +428,18 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel, ser
 
 	s.reporter.Report(progress.StageLaunch, 100, "Launched!")
 	s.reporter.Reset()
+
+	// Start a goroutine to wait for the game to exit
+	go func() {
+		if cmd.Process != nil {
+			_ = cmd.Wait()
+			logger.Info("Game process exited")
+			if onGameExit != nil {
+				onGameExit()
+			}
+		}
+	}()
+
 	return nil
 }
 

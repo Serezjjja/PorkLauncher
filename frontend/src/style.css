@@ -131,12 +131,12 @@ body {
   backface-visibility: hidden;
 }
 
-/* Fantasy Magic Theme - Glassmorphism Utilities */
+/* Modern Glassmorphism Utilities */
 .glass-panel {
-  background: rgba(54, 78, 58, 0.65);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(93, 139, 87, 0.3);
+  background: rgba(20, 20, 25, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   box-shadow: 
     0 8px 32px rgba(0, 0, 0, 0.4),
@@ -144,15 +144,14 @@ body {
 }
 
 .glass-panel-floating {
-  background: rgba(54, 78, 58, 0.7);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(93, 139, 87, 0.35);
+  background: rgba(20, 20, 25, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 24px;
   box-shadow: 
     0 12px 48px rgba(0, 0, 0, 0.5),
-    0 0 30px rgba(93, 139, 87, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 /* Neon accent colors - Green Theme */
@@ -411,27 +410,32 @@ svg {
 
 /* ==================== DISCORD WIDGET ==================== */
 .discord-widget {
-  background-color: rgba(20, 24, 21, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(20, 20, 25, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   width: 220px;
   min-height: 160px;
-  padding: 16px;
-  border-radius: 16px;
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
   gap: 12px;
-  transition: transform 0.3s ease, border-color 0.3s ease;
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
 }
 
 .discord-widget:hover {
-  transform: translateY(-5px);
-  border-color: rgba(88, 101, 242, 0.3);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  transform: translateY(-4px);
+  border-color: rgba(88, 101, 242, 0.4);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(88, 101, 242, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 /* Background Discord Icon */
@@ -570,37 +574,39 @@ svg {
   flex-shrink: 0;
 }
 
-/* Join Button */
+/* Join Button - Ghost Button Style */
 .discord-btn {
   text-decoration: none;
   width: 100%;
-  background-color: #252b27;
-  color: #9ca3af;
-  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 10px;
-  border-radius: 10px;
-  font-weight: 700;
+  border-radius: 12px;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 6px;
-  transition: color 0.3s ease, transform 0.1s ease;
+  transition: all 0.3s ease;
   position: relative;
   z-index: 2;
   box-sizing: border-box;
   font-family: 'MazzardM-Semibold', 'MazzardM-Medium', sans-serif;
   margin-top: auto;
+  letter-spacing: 0.5px;
 }
 
 .discord-btn:hover {
   text-decoration: none;
-  background: linear-gradient(90deg, #4752c4, #5865F2, #969cf2, #5865F2, #4752c4);
-  background-size: 300% 100%;
-  animation: discord-shimmer 3s linear infinite;
-  color: white;
-  box-shadow: 0 0 15px rgba(88, 101, 242, 0.6);
+  background: rgba(88, 101, 242, 0.2);
+  border-color: rgba(88, 101, 242, 0.5);
+  color: #ffffff;
+  box-shadow: 
+    0 0 20px rgba(88, 101, 242, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transform: translateY(-2px);
 }
 
@@ -615,27 +621,32 @@ svg {
 
 /* ==================== TELEGRAM WIDGET ==================== */
 .telegram-widget {
-  background-color: rgba(20, 24, 21, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(20, 20, 25, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   width: 220px;
   min-height: 160px;
-  padding: 16px;
-  border-radius: 16px;
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
   gap: 12px;
-  transition: transform 0.3s ease, border-color 0.3s ease;
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
 }
 
 .telegram-widget:hover {
-  transform: translateY(-5px);
-  border-color: rgba(34, 158, 217, 0.3);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  transform: translateY(-4px);
+  border-color: rgba(34, 158, 217, 0.4);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(34, 158, 217, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 /* Background Telegram Icon */
@@ -712,36 +723,38 @@ svg {
   font-family: 'MazzardM-Medium', sans-serif;
 }
 
-/* Join Button */
+/* Join Button - Ghost Button Style */
 .tg-btn {
   text-decoration: none;
   width: 100%;
-  background-color: #252b27;
-  color: #9ca3af;
-  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 10px;
-  border-radius: 10px;
-  font-weight: 700;
+  border-radius: 12px;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 6px;
-  transition: color 0.3s ease, transform 0.1s ease;
+  transition: all 0.3s ease;
   position: relative;
   z-index: 2;
   box-sizing: border-box;
   font-family: 'MazzardM-Semibold', 'MazzardM-Medium', sans-serif;
   margin-top: auto;
+  letter-spacing: 0.5px;
 }
 
 .tg-btn:hover {
-  background: linear-gradient(90deg, #1c7ca6, #229ED9, #6ecbf5, #229ED9, #1c7ca6);
-  background-size: 300% 100%;
-  animation: tg-shimmer 3s linear infinite;
-  color: white;
-  box-shadow: 0 0 15px rgba(34, 158, 217, 0.6);
+  background: rgba(34, 158, 217, 0.2);
+  border-color: rgba(34, 158, 217, 0.5);
+  color: #ffffff;
+  box-shadow: 
+    0 0 20px rgba(34, 158, 217, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transform: translateY(-2px);
 }
 

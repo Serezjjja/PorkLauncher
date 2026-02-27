@@ -54,9 +54,9 @@ const App: React.FC = () => {
               transition={{ ...bgTransition, filter: { duration: 0 } }}
             >
               {Background ? <Background /> : null}
-              <div className="absolute inset-0 bg-gradient-to-b from-[#1C2A1F]/30 via-transparent to-[#1C2A1F]/50" />
-              <div className="absolute inset-0 [box-shadow:inset_0_0_120px_rgba(28,42,31,0.5)]" />
-              <div className="absolute inset-0 opacity-[0.04] mix-blend-overlay noise-layer" />
+              <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0f]/60 via-[#0a0a0f]/40 to-[#0a0a0f]/70" />
+              <div className="absolute inset-0 [box-shadow:inset_0_0_120px_rgba(10,10,15,0.6)]" />
+              <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay noise-layer" />
             </motion.div>
           </AnimatePresence>
         </div>

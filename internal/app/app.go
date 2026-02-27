@@ -16,6 +16,19 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+// Window control methods
+func (a *App) HideWindow() {
+	runtime.WindowHide(a.ctx)
+}
+
+func (a *App) ShowWindow() {
+	runtime.WindowShow(a.ctx)
+}
+
+func (a *App) registerWindowHandlers() {
+	// Window event handlers can be registered here if needed
+}
+
 type App struct {
 	ctx         context.Context
 	launcherCfg *config.LauncherConfig
@@ -37,6 +50,8 @@ func NewApp() *App {
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 	a.progress = progress.New(ctx)
+
+	a.registerWindowHandlers()
 
 	hyerrors.RegisterHandlerFunc(func(err *hyerrors.Error) {
 		runtime.EventsEmit(a.ctx, "error", err)

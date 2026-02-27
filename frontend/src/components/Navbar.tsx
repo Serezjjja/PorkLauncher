@@ -60,6 +60,7 @@ function Navbar({ activeTab, onTabChange, onDiagnosticsClick, onSettingsClick }:
         z-[110]
         shadow-[0_12px_48px_rgba(0,0,0,0.5),0_0_30px_rgba(93,139,87,0.15),inset_0_1px_0_rgba(255,255,255,0.15)]
         before:absolute before:inset-0 before:rounded-[20px] before:bg-gradient-to-b before:from-white/[0.08] before:to-transparent before:pointer-events-none
+        overflow-visible
       "
     >
       {/* TOP ICONS */}
@@ -82,11 +83,17 @@ function Navbar({ activeTab, onTabChange, onDiagnosticsClick, onSettingsClick }:
                 isDisabled
                   ? "cursor-not-allowed text-neutral-600 opacity-30"
                   : isActive 
-                    ? "cursor-pointer text-[#7AB872] drop-shadow-[0_0_8px_rgba(122,184,114,0.8)] bg-[#5D8B57]/[0.2] shadow-[0_0_20px_rgba(93,139,87,0.3),inset_0_1px_0_rgba(255,255,255,0.2)]"
+                    ? "cursor-pointer text-[#7AB872] drop-shadow-[0_0_8px_rgba(122,184,114,0.8)] bg-[#5D8B57]/[0.25] shadow-[0_0_20px_rgba(93,139,87,0.3),inset_0_1px_0_rgba(255,255,255,0.2)]"
                     : "cursor-pointer text-white/70 hover:text-[#7AB872] hover:bg-[#5D8B57]/[0.1] hover:shadow-[0_0_15px_rgba(93,139,87,0.15)]"
               }`}
               title={isDisabled ? "Coming soon" : page.name}
             >
+              {/* Active indicator - left glow bar */}
+              {isActive && (
+                <div 
+                  className="absolute -left-[16px] top-1/2 -translate-y-1/2 w-[3px] h-[20px] bg-[#7AB872] rounded-r-full shadow-[0_0_10px_#7AB872,0_0_20px_rgba(122,184,114,0.8)]"
+                />
+              )}
               <Icon size={18} />
             </button>
           );

@@ -3,6 +3,7 @@ package app
 import (
 	"HyLauncher/internal/patch"
 	"HyLauncher/pkg/hyerrors"
+	"HyLauncher/pkg/logger"
 )
 
 type VersionsResponse struct {
@@ -62,7 +63,18 @@ func (a *App) downloadAndLaunchInternal(playerName string, serverIP string) Laun
 		}
 	}
 
-	if err := a.gameSvc.Launch(authPlayerName, a.instance, serverIP); err != nil {
+	// Hide the launcher window before launching the game
+	a.HideWindow()
+
+	// Callback for when the game exits
+	onGameExit := func() {
+		logger.Info("Game exited, showing launcher window")
+		a.ShowWindow()
+	}
+
+	if err := a.gameSvc.Launch(authPlayerName, a.instance, onGameExit, serverIP); err != nil {
+		// Show the window again if launch failed
+		a.ShowWindow()
 		appErr := hyerrors.GameCritical("failed to launch game").
 			WithDetails(err.Error()).
 			WithContext("player", authPlayerName).

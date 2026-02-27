@@ -21,7 +21,7 @@ type AuthService struct {
 func NewAuthService(ctx context.Context) *AuthService {
 	return &AuthService{
 		ctx:     ctx,
-		baseUrl: "https://sessions.sanasol.ws",
+		baseUrl: "https://sessions.porkln.fun",
 	}
 }
 

@@ -53,6 +53,8 @@ export function GetServers():Promise<Array<service.ServerWithUrls>>;
 
 export function HasPlayerRole():Promise<boolean>;
 
+export function HideWindow():Promise<void>;
+
 export function Login(arg1:app.LoginRequest):Promise<app.AuthResponse>;
 
 export function Logout():Promise<app.AuthResponse>;
@@ -68,6 +70,8 @@ export function SetDiscordRPC(arg1:boolean):Promise<void>;
 export function SetLocalGameVersion(arg1:string,arg2:string):Promise<void>;
 
 export function SetNick(arg1:string,arg2:string):Promise<void>;
+
+export function ShowWindow():Promise<void>;
 
 export function SyncInstanceState():Promise<void>;
 

@@ -102,18 +102,34 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
             isDownloading ? "cursor-not-allowed" : "cursor-pointer"
           }`}
         >
-          {/* Animated gradient background - GREEN theme */}
+          {/* Animated gradient background - GREEN theme with brighter top */}
           <motion.div 
-            className="absolute inset-0 bg-gradient-to-b from-[#5D8B57] via-[#4A7A44] to-[#364E3A] opacity-95"
+            className="absolute inset-0 bg-gradient-to-b from-[#7AB872] via-[#5D8B57] to-[#364E3A] opacity-95"
             animate={!isDownloading ? {
               background: [
-                "linear-gradient(to bottom, #5D8B57, #4A7A44, #364E3A)",
-                "linear-gradient(to bottom, #6B9B65, #5A8A54, #465E4A)",
-                "linear-gradient(to bottom, #5D8B57, #4A7A44, #364E3A)"
+                "linear-gradient(to bottom, #7AB872, #5D8B57, #364E3A)",
+                "linear-gradient(to bottom, #8BCB84, #6B9B65, #465E4A)",
+                "linear-gradient(to bottom, #7AB872, #5D8B57, #364E3A)"
               ]
             } : {}}
             transition={{
               duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          />
+          
+          {/* Inner glow - top edge highlight for volume */}
+          <motion.div 
+            className="absolute inset-x-0 top-0 h-[35%] rounded-t-[50px]"
+            style={{
+              background: "linear-gradient(to bottom, rgba(139,203,132,0.6) 0%, rgba(122,184,114,0.3) 40%, transparent 100%)"
+            }}
+            animate={!isDownloading ? {
+              opacity: [0.7, 1, 0.7]
+            } : {}}
+            transition={{
+              duration: 2,
               repeat: Infinity,
               ease: "easeInOut"
             }}
@@ -136,8 +152,8 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
             }}
           />
           
-          {/* Glossy highlight with shimmer */}
-          <div className="absolute inset-x-0 top-0 h-[45%] bg-gradient-to-b from-white/40 to-transparent rounded-t-[50px]" />
+          {/* Glossy highlight with shimmer - enhanced */}
+          <div className="absolute inset-x-0 top-0 h-[40%] bg-gradient-to-b from-white/50 via-white/20 to-transparent rounded-t-[50px]" />
           
           {/* Moving shimmer effect */}
           <motion.div 
@@ -170,17 +186,20 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
             }}
           />
           
-          {/* Text with enhanced glow animation */}
+          {/* Text with enhanced glow animation and stronger shadow */}
           <motion.span 
             className="relative z-10 tracking-wider"
+            style={{
+              textShadow: "0 2px 4px rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.3), 0 0 30px rgba(122,184,114,0.6)"
+            }}
             animate={!isDownloading ? {
               textShadow: [
-                "0 2px 4px rgba(0,0,0,0.3), 0 0 20px rgba(122,184,114,0.5)",
-                "0 2px 4px rgba(0,0,0,0.3), 0 0 40px rgba(122,184,114,0.8), 0 0 60px rgba(122,184,114,0.4)",
-                "0 2px 4px rgba(0,0,0,0.3), 0 0 20px rgba(122,184,114,0.5)"
+                "0 2px 4px rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.3), 0 0 30px rgba(122,184,114,0.6)",
+                "0 2px 4px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.4), 0 0 50px rgba(122,184,114,1), 0 0 80px rgba(139,203,132,0.5)",
+                "0 2px 4px rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.3), 0 0 30px rgba(122,184,114,0.6)"
               ]
             } : {
-              textShadow: "0 2px 4px rgba(0,0,0,0.3)"
+              textShadow: "0 2px 4px rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.3)"
             }}
             transition={{
               duration: 2,

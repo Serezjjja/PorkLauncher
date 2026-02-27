@@ -98,6 +98,10 @@ export function HasPlayerRole() {
   return window['go']['app']['App']['HasPlayerRole']();
 }
 
+export function HideWindow() {
+  return window['go']['app']['App']['HideWindow']();
+}
+
 export function Login(arg1) {
   return window['go']['app']['App']['Login'](arg1);
 }
@@ -128,6 +132,10 @@ export function SetLocalGameVersion(arg1, arg2) {
 
 export function SetNick(arg1, arg2) {
   return window['go']['app']['App']['SetNick'](arg1, arg2);
+}
+
+export function ShowWindow() {
+  return window['go']['app']['App']['ShowWindow']();
 }
 
 export function SyncInstanceState() {
