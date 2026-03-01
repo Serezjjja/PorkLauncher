@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"time"
 
+	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/download"
@@ -37,7 +38,7 @@ func GetJREVersionDir(version string) string {
 }
 
 func FetchJREManifest(branch string) (*JREJSON, error) {
-	url := fmt.Sprintf("https://launcher.hytale.com/version/%s/jre.json", branch)
+	url := fmt.Sprintf("%s/version/%s/jre.json", config.GetJREManifestURL(), branch)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err

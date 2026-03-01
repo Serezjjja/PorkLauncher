@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
 )
 
@@ -223,7 +224,7 @@ func fetchPatchStepsFromAPI(branch string, currentVer int) ([]PatchStep, error) 
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	req, err := http.NewRequest("GET", "https://api.hylauncher.fun/v1/pwr", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("GET", config.GetPatchAPIURL(), bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -289,8 +290,8 @@ func createClient() *http.Client {
 }
 
 func buildPatchURL(branch string, version int) string {
-	return fmt.Sprintf("https://game-patches.hytale.com/patches/%s/%s/%s/0/%d.pwr",
-		runtime.GOOS, runtime.GOARCH, branch, version)
+	return fmt.Sprintf("%s/%s/%s/%s/0/%d.pwr",
+		config.GetGamePatchesURL(), runtime.GOOS, runtime.GOARCH, branch, version)
 }
 
 func cacheKey(branch string) string {

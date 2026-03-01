@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"time"
 
+	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/platform"
 	"HyLauncher/internal/progress"
@@ -219,7 +220,7 @@ func fetchPatchSteps(ctx context.Context, branch string, currentVer int) ([]Patc
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.hylauncher.fun/v1/pwr", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, "GET", config.GetPatchAPIURL(), bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}

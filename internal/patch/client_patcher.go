@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 
+	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/platform"
 	"HyLauncher/internal/progress"
@@ -20,11 +21,12 @@ import (
 )
 
 const (
-	originalDomain   = "hytale.com"
-	minDomainLength  = 4
-	maxDomainLength  = 10
-	defaultNewDomain = "porkln.fun"
+	originalDomain  = "hytale.com"
+	minDomainLength = 4
+	maxDomainLength = 15
 )
+
+var defaultNewDomain = config.GetPatchDomain()
 
 type ClientPatcher struct {
 	targetDomain string

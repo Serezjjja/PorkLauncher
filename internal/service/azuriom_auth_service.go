@@ -9,12 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"HyLauncher/internal/config"
 	"HyLauncher/pkg/model"
-)
-
-const (
-	// AZURIOM_BASE is the base URL for your Azuriom website
-	AZURIOM_BASE = "https://porkland.net"
 )
 
 // AzuriomAuthService handles authentication with Azuriom's built-in Auth API
@@ -26,9 +22,14 @@ type AzuriomAuthService struct {
 
 // NewAzuriomAuthService creates a new Azuriom authentication service
 func NewAzuriomAuthService(ctx context.Context) *AzuriomAuthService {
+	baseURL := config.GetAzuriomBaseURL()
+	if baseURL == "" {
+		// Fallback for development - should be set at build time in production
+		baseURL = "https://localhost"
+	}
 	return &AzuriomAuthService{
 		ctx:     ctx,
-		baseURL: AZURIOM_BASE,
+		baseURL: baseURL,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},

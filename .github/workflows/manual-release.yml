@@ -67,6 +67,19 @@ jobs:
       - name: Build (Windows)
         if: startsWith(matrix.platform, 'windows/')
         shell: powershell
+        env:
+          AZURIOM_BASE_URL: ${{ secrets.AZURIOM_BASE_URL }}
+          SESSION_SERVICE_URL: ${{ secrets.SESSION_SERVICE_URL }}
+          PATCH_DOMAIN: ${{ secrets.PATCH_DOMAIN }}
+          PATCH_API_URL: ${{ secrets.PATCH_API_URL }}
+          GAME_PATCHES_URL: ${{ secrets.GAME_PATCHES_URL }}
+          SERVER_LOGO_URL: ${{ secrets.SERVER_LOGO_URL }}
+          SERVER_BANNER_URL: ${{ secrets.SERVER_BANNER_URL }}
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_NAME: ${{ secrets.SERVER_NAME }}
+          JRE_MANIFEST_URL: ${{ secrets.JRE_MANIFEST_URL }}
+          BUTLER_BASE_URL: ${{ secrets.BUTLER_BASE_URL }}
+          DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
         run: |
           $ErrorActionPreference = "Stop"
           $ProgressPreference = "SilentlyContinue"
@@ -74,8 +87,20 @@ jobs:
           # Create release directory
           New-Item -ItemType Directory -Force -Path "release" | Out-Null
           
-          # Build update-helper
-          go build -o "release/update-helper-windows.exe" ./cmd/update-helper
+          # Build update-helper with ldflags
+          $ldflags = "-X 'HyLauncher/internal/config.AzuriomBaseURL=$env:AZURIOM_BASE_URL'"
+          $ldflags += " -X 'HyLauncher/internal/config.SessionServiceURL=$env:SESSION_SERVICE_URL'"
+          $ldflags += " -X 'HyLauncher/internal/config.PatchDomain=$env:PATCH_DOMAIN'"
+          $ldflags += " -X 'HyLauncher/internal/config.PatchAPIURL=$env:PATCH_API_URL'"
+          $ldflags += " -X 'HyLauncher/internal/config.GamePatchesURL=$env:GAME_PATCHES_URL'"
+          $ldflags += " -X 'HyLauncher/internal/config.ServerLogoURL=$env:SERVER_LOGO_URL'"
+          $ldflags += " -X 'HyLauncher/internal/config.ServerBannerURL=$env:SERVER_BANNER_URL'"
+          $ldflags += " -X 'HyLauncher/internal/config.ServerIP=$env:SERVER_IP'"
+          $ldflags += " -X 'HyLauncher/internal/config.ServerName=$env:SERVER_NAME'"
+          $ldflags += " -X 'HyLauncher/internal/config.JREManifestURL=$env:JRE_MANIFEST_URL'"
+          $ldflags += " -X 'HyLauncher/internal/config.ButlerBaseURL=$env:BUTLER_BASE_URL'"
+          $ldflags += " -X 'HyLauncher/internal/config.DiscordAppID=$env:DISCORD_APP_ID'"
+          go build -ldflags="$ldflags" -o "release/update-helper-windows.exe" ./cmd/update-helper
           if (-not (Test-Path "release/update-helper-windows.exe")) {
               throw "Failed to build update-helper-windows.exe"
           }
@@ -89,7 +114,19 @@ jobs:
           
           # Build portable version
           Write-Host "Building portable version..."
-          wails build -platform windows/amd64
+          $wailsLdflags = "-X 'HyLauncher/internal/config.AzuriomBaseURL=$env:AZURIOM_BASE_URL'"
+          $wailsLdflags += " -X 'HyLauncher/internal/config.SessionServiceURL=$env:SESSION_SERVICE_URL'"
+          $wailsLdflags += " -X 'HyLauncher/internal/config.PatchDomain=$env:PATCH_DOMAIN'"
+          $wailsLdflags += " -X 'HyLauncher/internal/config.PatchAPIURL=$env:PATCH_API_URL'"
+          $wailsLdflags += " -X 'HyLauncher/internal/config.GamePatchesURL=$env:GAME_PATCHES_URL'"
+          $wailsLdflags += " -X 'HyLauncher/internal/config.ServerLogoURL=$env:SERVER_LOGO_URL'"
+          $wailsLdflags += " -X 'HyLauncher/internal/config.ServerBannerURL=$env:SERVER_BANNER_URL'"
+          $wailsLdflags += " -X 'HyLauncher/internal/config.ServerIP=$env:SERVER_IP'"
+          $wailsLdflags += " -X 'HyLauncher/internal/config.ServerName=$env:SERVER_NAME'"
+          $wailsLdflags += " -X 'HyLauncher/internal/config.JREManifestURL=$env:JRE_MANIFEST_URL'"
+          $wailsLdflags += " -X 'HyLauncher/internal/config.ButlerBaseURL=$env:BUTLER_BASE_URL'"
+          $wailsLdflags += " -X 'HyLauncher/internal/config.DiscordAppID=$env:DISCORD_APP_ID'"
+          wails build -platform windows/amd64 -ldflags "$wailsLdflags"
           
           $portableSource = "build/bin/HyLauncher.exe"
           $portableDest = "release/$outputName-portable.exe"
@@ -103,7 +140,7 @@ jobs:
           
           # Build NSIS installer version
           Write-Host "Building NSIS installer..."
-          wails build -platform windows/amd64 -nsis
+          wails build -platform windows/amd64 -nsis -ldflags "$wailsLdflags"
           
           $installerSource = "build/bin/HyLauncher-amd64-installer.exe"
           $installerDest = "release/$outputName-setup.exe"
@@ -121,17 +158,42 @@ jobs:
 
       - name: Build (macOS ARM64)
         if: matrix.platform == 'darwin/arm64'
+        env:
+          AZURIOM_BASE_URL: ${{ secrets.AZURIOM_BASE_URL }}
+          SESSION_SERVICE_URL: ${{ secrets.SESSION_SERVICE_URL }}
+          PATCH_DOMAIN: ${{ secrets.PATCH_DOMAIN }}
+          PATCH_API_URL: ${{ secrets.PATCH_API_URL }}
+          GAME_PATCHES_URL: ${{ secrets.GAME_PATCHES_URL }}
+          SERVER_LOGO_URL: ${{ secrets.SERVER_LOGO_URL }}
+          SERVER_BANNER_URL: ${{ secrets.SERVER_BANNER_URL }}
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_NAME: ${{ secrets.SERVER_NAME }}
+          JRE_MANIFEST_URL: ${{ secrets.JRE_MANIFEST_URL }}
+          BUTLER_BASE_URL: ${{ secrets.BUTLER_BASE_URL }}
+          DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
         run: |
           set -e
           VERSION="${{ inputs.version }}"
           echo "Building macOS ARM64 version $VERSION"
           
           mkdir -p release
-          go build -o release/update-helper-macos-arm64 ./cmd/update-helper
+          LDFLAGS="-X 'HyLauncher/internal/config.AzuriomBaseURL=${AZURIOM_BASE_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.SessionServiceURL=${SESSION_SERVICE_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.PatchDomain=${PATCH_DOMAIN}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.PatchAPIURL=${PATCH_API_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.GamePatchesURL=${GAME_PATCHES_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ServerLogoURL=${SERVER_LOGO_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ServerBannerURL=${SERVER_BANNER_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ServerIP=${SERVER_IP}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ServerName=${SERVER_NAME}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.JREManifestURL=${JRE_MANIFEST_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ButlerBaseURL=${BUTLER_BASE_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.DiscordAppID=${DISCORD_APP_ID}'"
+          go build -ldflags="${LDFLAGS}" -o release/update-helper-macos-arm64 ./cmd/update-helper
           chmod +x release/update-helper-macos-arm64
           
           # Build ARM64 binary (uses outputfilename from wails.json)
-          wails build -platform darwin/arm64
+          wails build -platform darwin/arm64 -ldflags "${LDFLAGS}"
           
           # Check if build succeeded
           if [ ! -d "build/bin/HyLauncher.app" ]; then
@@ -168,17 +230,42 @@ jobs:
 
       - name: Build (macOS AMD64)
         if: matrix.platform == 'darwin/amd64'
+        env:
+          AZURIOM_BASE_URL: ${{ secrets.AZURIOM_BASE_URL }}
+          SESSION_SERVICE_URL: ${{ secrets.SESSION_SERVICE_URL }}
+          PATCH_DOMAIN: ${{ secrets.PATCH_DOMAIN }}
+          PATCH_API_URL: ${{ secrets.PATCH_API_URL }}
+          GAME_PATCHES_URL: ${{ secrets.GAME_PATCHES_URL }}
+          SERVER_LOGO_URL: ${{ secrets.SERVER_LOGO_URL }}
+          SERVER_BANNER_URL: ${{ secrets.SERVER_BANNER_URL }}
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_NAME: ${{ secrets.SERVER_NAME }}
+          JRE_MANIFEST_URL: ${{ secrets.JRE_MANIFEST_URL }}
+          BUTLER_BASE_URL: ${{ secrets.BUTLER_BASE_URL }}
+          DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
         run: |
           set -e
           VERSION="${{ inputs.version }}"
           echo "Building macOS AMD64 version $VERSION"
           
           mkdir -p release
-          go build -o release/update-helper-macos-amd64 ./cmd/update-helper
+          LDFLAGS="-X 'HyLauncher/internal/config.AzuriomBaseURL=${AZURIOM_BASE_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.SessionServiceURL=${SESSION_SERVICE_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.PatchDomain=${PATCH_DOMAIN}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.PatchAPIURL=${PATCH_API_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.GamePatchesURL=${GAME_PATCHES_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ServerLogoURL=${SERVER_LOGO_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ServerBannerURL=${SERVER_BANNER_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ServerIP=${SERVER_IP}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ServerName=${SERVER_NAME}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.JREManifestURL=${JRE_MANIFEST_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ButlerBaseURL=${BUTLER_BASE_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.DiscordAppID=${DISCORD_APP_ID}'"
+          go build -ldflags="${LDFLAGS}" -o release/update-helper-macos-amd64 ./cmd/update-helper
           chmod +x release/update-helper-macos-amd64
           
           # Build AMD64 binary (uses outputfilename from wails.json)
-          wails build -platform darwin/amd64
+          wails build -platform darwin/amd64 -ldflags "${LDFLAGS}"
           
           # Check if build succeeded
           if [ ! -d "build/bin/HyLauncher.app" ]; then

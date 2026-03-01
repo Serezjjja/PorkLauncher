@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/archive"
@@ -101,7 +102,7 @@ func VerifyButler() error {
 }
 
 func DownloadButler(ctx context.Context, toolsDir, zipPath, tempZipPath, osName, arch string, reporter *progress.Reporter) error {
-	url := fmt.Sprintf("https://broth.itch.zone/butler/%s-%s/LATEST/archive/default", osName, arch)
+	url := fmt.Sprintf("%s/butler/%s-%s/LATEST/archive/default", config.GetButlerBaseURL(), osName, arch)
 
 	logger.Info("Downloading Butler", "url", url, "os", osName, "arch", arch)
 	reporter.Report(progress.StageButler, 0, "Downloading butler.zip...")

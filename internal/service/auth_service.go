@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"HyLauncher/internal/config"
 	"HyLauncher/internal/game"
 	"HyLauncher/pkg/model"
 )
@@ -21,7 +22,7 @@ type AuthService struct {
 func NewAuthService(ctx context.Context) *AuthService {
 	return &AuthService{
 		ctx:     ctx,
-		baseUrl: "https://sessions.porkln.fun",
+		baseUrl: config.GetSessionServiceURL(),
 	}
 }
 

@@ -65,7 +65,11 @@ func (a *App) Startup(ctx context.Context) {
 	a.launcherCfg = launcherCfg
 
 	if launcherCfg.DiscordRPC {
-		_ = client.Login("1465005878276128888")
+		discordAppID := config.GetDiscordAppID()
+		if discordAppID == "" {
+			discordAppID = "1465005878276128888" // fallback for development
+		}
+		_ = client.Login(discordAppID)
 	}
 
 	instanceName := launcherCfg.Instance
