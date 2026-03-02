@@ -312,6 +312,18 @@ jobs:
           echo "macOS AMD64 build complete:"
           ls -lh release/* || true
 
+      - name: Verify build outputs
+        shell: bash
+        run: |
+          echo "Checking release directory contents..."
+          if [ ! -d "release" ] || [ -z "$(ls -A release 2>/dev/null)" ]; then
+            echo "ERROR: release/ directory is empty or missing!"
+            echo "Build likely failed for platform: ${{ matrix.platform }}"
+            exit 1
+          fi
+          echo "Build artifacts:"
+          ls -lh release/
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -341,37 +353,22 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          path: release
           pattern: release-*
-          merge-multiple: false
+          merge-multiple: true
 
-      - name: Debug artifact structure
+      - name: Verify release files
         run: |
-          echo "Artifact directory structure:"
-          find artifacts -type f -ls 2>/dev/null || echo "No artifacts found"
-          ls -la artifacts/ 2>/dev/null || echo "Artifacts dir empty"
-
-      - name: Prepare release files
-        run: |
-          mkdir -p release
-
-          echo "Available artifact directories:"
-          find artifacts -type d 2>/dev/null || true
-
-          for dir in artifacts/release-*/; do
-            if [ -d "$dir" ] && [ "$(ls -A $dir)" ]; then
-              echo "Copying from $dir..."
-              cp -r "$dir"* release/
-            fi
-          done
-
           echo "Files in release directory:"
           ls -la release/
 
-          if [ ! "$(ls -A release)" ]; then
+          if [ ! "$(ls -A release 2>/dev/null)" ]; then
             echo "Error: No release files found!"
+            echo "This usually means the build jobs failed or produced no artifacts."
             exit 1
           fi
+
+          echo "Release files found: $(ls release/ | wc -l)"
 
       - name: Generate metadata.json and sign
         env:
