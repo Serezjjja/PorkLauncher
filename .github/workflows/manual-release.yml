@@ -393,7 +393,7 @@ jobs:
           MAC_AMD64_PAYLOAD_SIZE=$(stat -c%s release/payload-darwin-amd64.zip)
 
           echo "Generating metadata.json..."
-          cat <<EOF > release/metadata.json
+          cat > release/metadata.json <<EOF
           {
             "version": "$VERSION",
             "payload": {
@@ -416,6 +416,14 @@ jobs:
             "min_bootstrap_version": "1.0.0"
           }
           EOF
+          # Strip leading whitespace from JSON (heredoc indentation)
+          python3 -c "
+          import json, sys
+          with open('release/metadata.json') as f:
+              data = json.load(f)
+          with open('release/metadata.json', 'w') as f:
+              json.dump(data, f, indent=2)
+          "
 
           # Sign metadata.json with Ed25519
           if [ -n "$ED25519_PRIVATE_KEY" ]; then
@@ -457,7 +465,7 @@ jobs:
           fi
           MACOS_AMD64_HELPER_SHA=$(sha256sum release/update-helper-macos-amd64 2>/dev/null | cut -d' ' -f1 || echo "")
 
-          cat <<EOF > release/version.json
+          cat > release/version.json <<EOF
           {
             "version": "$VERSION",
             "windows": {
@@ -500,6 +508,14 @@ jobs:
             }
           }
           EOF
+          # Strip leading whitespace from JSON
+          python3 -c "
+          import json, sys
+          with open('release/version.json') as f:
+              data = json.load(f)
+          with open('release/version.json', 'w') as f:
+              json.dump(data, f, indent=2)
+          "
 
       - name: Generate changelog
         env:
