@@ -425,7 +425,10 @@ jobs:
           # Sign metadata.json with Ed25519
           if [ -n "$ED25519_PRIVATE_KEY" ]; then
             echo "Signing metadata.json..."
-            echo -n "$ED25519_PRIVATE_KEY" > /tmp/private.key
+            # Strip any whitespace/newlines that may have been introduced when pasting into GitHub Secrets
+            echo -n "$ED25519_PRIVATE_KEY" | tr -d '[:space:]' > /tmp/private.key
+            KEY_LEN=$(wc -c < /tmp/private.key)
+            echo "Private key hex length: $KEY_LEN chars (expected 128)"
             go run ./tools/sign-payload -sign -key /tmp/private.key -input release/metadata.json
             rm -f /tmp/private.key
             echo "Metadata signed successfully"

@@ -18,6 +18,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -84,13 +85,18 @@ func doSign(keyPath, inputPath string) {
 		fatalf("read private key: %v", err)
 	}
 
-	privKeyBytes, err := hex.DecodeString(string(privKeyHex))
+	// Trim any whitespace/newlines that may have been introduced
+	privKeyHexStr := strings.TrimSpace(string(privKeyHex))
+
+	privKeyBytes, err := hex.DecodeString(privKeyHexStr)
 	if err != nil {
 		fatalf("decode private key hex: %v", err)
 	}
 
 	if len(privKeyBytes) != ed25519.PrivateKeySize {
-		fatalf("invalid private key size: got %d bytes, want %d", len(privKeyBytes), ed25519.PrivateKeySize)
+		fatalf("invalid private key size: got %d bytes (%d hex chars), want %d bytes (%d hex chars)\n"+
+			"Please regenerate keys with: go run ./tools/sign-payload -generate",
+			len(privKeyBytes), len(privKeyHexStr), ed25519.PrivateKeySize, ed25519.PrivateKeySize*2)
 	}
 
 	privKey := ed25519.PrivateKey(privKeyBytes)
@@ -121,13 +127,17 @@ func doVerify(pubkeyPath, inputPath, sigPath string) {
 		fatalf("read public key: %v", err)
 	}
 
-	pubKeyBytes, err := hex.DecodeString(string(pubKeyHex))
+	pubKeyHexStr := strings.TrimSpace(string(pubKeyHex))
+
+	pubKeyBytes, err := hex.DecodeString(pubKeyHexStr)
 	if err != nil {
 		fatalf("decode public key hex: %v", err)
 	}
 
 	if len(pubKeyBytes) != ed25519.PublicKeySize {
-		fatalf("invalid public key size: got %d bytes, want %d", len(pubKeyBytes), ed25519.PublicKeySize)
+		fatalf("invalid public key size: got %d bytes (%d hex chars), want %d bytes (%d hex chars)\n"+
+			"Please regenerate keys with: go run ./tools/sign-payload -generate",
+			len(pubKeyBytes), len(pubKeyHexStr), ed25519.PublicKeySize, ed25519.PublicKeySize*2)
 	}
 
 	pubKey := ed25519.PublicKey(pubKeyBytes)
