@@ -2,3 +2,12 @@ build/bin
 node_modules
 frontend/dist
 go.sum
+
+# Ed25519 signing keys — NEVER commit these
+private.key
+*.key
+!public.key
+
+# Payload signing artifacts
+metadata.json.sig
+release/

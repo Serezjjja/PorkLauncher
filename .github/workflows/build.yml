@@ -1,4 +1,4 @@
-name: Wails Build Windows, Linux & macOS
+name: Build Bootstrap & Payload
 
 on:
   push:
@@ -63,6 +63,31 @@ jobs:
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
+      # ─── Bootstrap binary (pure Go, no Wails) ───
+      - name: Build bootstrap
+        shell: bash
+        env:
+          UPDATE_SERVER_URL: ${{ secrets.UPDATE_SERVER_URL }}
+          ED25519_PUBLIC_KEY_HEX: ${{ secrets.ED25519_PUBLIC_KEY_HEX }}
+          FALLBACK_DOWNLOAD_URL: ${{ secrets.FALLBACK_DOWNLOAD_URL }}
+        run: |
+          mkdir -p build/bin
+          LDFLAGS="-s -w"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/bootstrap.UpdateServerURL=${UPDATE_SERVER_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/bootstrap.Ed25519PublicKeyHex=${ED25519_PUBLIC_KEY_HEX}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/bootstrap.FallbackDownloadURL=${FALLBACK_DOWNLOAD_URL}'"
+          if [ "${{ matrix.platform }}" = "windows/amd64" ]; then
+            GOOS=windows GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o build/bin/PorkLauncher.exe ./cmd/bootstrap
+          elif [ "${{ matrix.platform }}" = "darwin/universal" ]; then
+            GOOS=darwin GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o build/bin/PorkLauncher-darwin-arm64 ./cmd/bootstrap
+            GOOS=darwin GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o build/bin/PorkLauncher-darwin-amd64 ./cmd/bootstrap
+            chmod +x build/bin/PorkLauncher-darwin-arm64 build/bin/PorkLauncher-darwin-amd64
+          else
+            GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o build/bin/PorkLauncher ./cmd/bootstrap
+            chmod +x build/bin/PorkLauncher
+          fi
+
+      # ─── Update helper ───
       - name: Build update-helper
         shell: bash
         env:
@@ -79,7 +104,6 @@ jobs:
           BUTLER_BASE_URL: ${{ secrets.BUTLER_BASE_URL }}
           DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
         run: |
-          mkdir -p build/bin
           LDFLAGS="-X 'HyLauncher/internal/config.AzuriomBaseURL=${AZURIOM_BASE_URL}'"
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.SessionServiceURL=${SESSION_SERVICE_URL}'"
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.PatchDomain=${PATCH_DOMAIN}'"
@@ -99,7 +123,8 @@ jobs:
             chmod +x build/bin/update-helper
           fi
 
-      - name: Build Wails app (Linux)
+      # ─── Payload (Wails app) ───
+      - name: Build Wails payload (Linux)
         if: startsWith(matrix.os, 'ubuntu')
         env:
           CGO_ENABLED: 0
@@ -130,7 +155,7 @@ jobs:
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.DiscordAppID=${DISCORD_APP_ID}'"
           wails build -platform linux/amd64 -tags webkit2_41 -o HyLauncher -ldflags "${LDFLAGS}"
 
-      - name: Build Wails app (Windows)
+      - name: Build Wails payload (Windows)
         if: startsWith(matrix.os, 'windows')
         env:
           CGO_ENABLED: 0
@@ -161,7 +186,7 @@ jobs:
           $env:LDFLAGS += " -X 'HyLauncher/internal/config.DiscordAppID=$env:DISCORD_APP_ID'"
           wails build -platform windows/amd64 -o HyLauncher -ldflags "$env:LDFLAGS"
 
-      - name: Build Wails app (macOS)
+      - name: Build Wails payload (macOS)
         if: startsWith(matrix.os, 'macos')
         env:
           AZURIOM_BASE_URL: ${{ secrets.AZURIOM_BASE_URL }}
