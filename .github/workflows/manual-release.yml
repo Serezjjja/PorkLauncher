@@ -59,12 +59,61 @@ jobs:
           choco install nsis -y
           $env:NSIS_PATH = "C:\Program Files (x86)\NSIS\Bin"
           Write-Output "$env:NSIS_PATH" | Out-File -FilePath $env:GITHUB_PATH -Append
-          # Also add to current session PATH
           $env:PATH = "$env:NSIS_PATH;$env:PATH"
           Write-Output "NSIS installed at: $env:NSIS_PATH"
           Get-Command makensis
 
-      - name: Build (Windows)
+      # ─────────────────────────────────────────────
+      # BOOTSTRAP BUILD (pure Go, no Wails, no secrets except update URL + pubkey)
+      # ─────────────────────────────────────────────
+
+      - name: Build bootstrap (Windows)
+        if: startsWith(matrix.platform, 'windows/')
+        shell: powershell
+        env:
+          UPDATE_SERVER_URL: ${{ secrets.UPDATE_SERVER_URL }}
+          ED25519_PUBLIC_KEY_HEX: ${{ secrets.ED25519_PUBLIC_KEY_HEX }}
+          FALLBACK_DOWNLOAD_URL: ${{ secrets.FALLBACK_DOWNLOAD_URL }}
+        run: |
+          New-Item -ItemType Directory -Force -Path "release" | Out-Null
+          $bsLdflags = "-s -w"
+          $bsLdflags += " -X 'HyLauncher/internal/bootstrap.UpdateServerURL=$env:UPDATE_SERVER_URL'"
+          $bsLdflags += " -X 'HyLauncher/internal/bootstrap.Ed25519PublicKeyHex=$env:ED25519_PUBLIC_KEY_HEX'"
+          $bsLdflags += " -X 'HyLauncher/internal/bootstrap.FallbackDownloadURL=$env:FALLBACK_DOWNLOAD_URL'"
+          go build -ldflags="$bsLdflags" -o "release/PorkLauncher-bootstrap-windows-x64.exe" ./cmd/bootstrap
+          if (-not (Test-Path "release/PorkLauncher-bootstrap-windows-x64.exe")) {
+              throw "Failed to build bootstrap"
+          }
+          Write-Host "Bootstrap built successfully"
+
+      - name: Build bootstrap (macOS)
+        if: startsWith(matrix.platform, 'darwin/')
+        env:
+          UPDATE_SERVER_URL: ${{ secrets.UPDATE_SERVER_URL }}
+          ED25519_PUBLIC_KEY_HEX: ${{ secrets.ED25519_PUBLIC_KEY_HEX }}
+          FALLBACK_DOWNLOAD_URL: ${{ secrets.FALLBACK_DOWNLOAD_URL }}
+        run: |
+          set -e
+          mkdir -p release
+          BS_LDFLAGS="-s -w"
+          BS_LDFLAGS="${BS_LDFLAGS} -X 'HyLauncher/internal/bootstrap.UpdateServerURL=${UPDATE_SERVER_URL}'"
+          BS_LDFLAGS="${BS_LDFLAGS} -X 'HyLauncher/internal/bootstrap.Ed25519PublicKeyHex=${ED25519_PUBLIC_KEY_HEX}'"
+          BS_LDFLAGS="${BS_LDFLAGS} -X 'HyLauncher/internal/bootstrap.FallbackDownloadURL=${FALLBACK_DOWNLOAD_URL}'"
+
+          if [ "${{ matrix.platform }}" = "darwin/arm64" ]; then
+            GOOS=darwin GOARCH=arm64 go build -ldflags="${BS_LDFLAGS}" -o release/PorkLauncher-bootstrap-macos-arm64 ./cmd/bootstrap
+            chmod +x release/PorkLauncher-bootstrap-macos-arm64
+          else
+            GOOS=darwin GOARCH=amd64 go build -ldflags="${BS_LDFLAGS}" -o release/PorkLauncher-bootstrap-macos-amd64 ./cmd/bootstrap
+            chmod +x release/PorkLauncher-bootstrap-macos-amd64
+          fi
+          echo "Bootstrap built successfully"
+
+      # ─────────────────────────────────────────────
+      # PAYLOAD BUILD (Wails app with all business logic secrets)
+      # ─────────────────────────────────────────────
+
+      - name: Build payload (Windows)
         if: startsWith(matrix.platform, 'windows/')
         shell: powershell
         env:
@@ -83,11 +132,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $ProgressPreference = "SilentlyContinue"
-          
-          # Create release directory
-          New-Item -ItemType Directory -Force -Path "release" | Out-Null
-          
-          # Build update-helper with ldflags
+
+          # Build update-helper
           $ldflags = "-X 'HyLauncher/internal/config.AzuriomBaseURL=$env:AZURIOM_BASE_URL'"
           $ldflags += " -X 'HyLauncher/internal/config.SessionServiceURL=$env:SESSION_SERVICE_URL'"
           $ldflags += " -X 'HyLauncher/internal/config.PatchDomain=$env:PATCH_DOMAIN'"
@@ -101,62 +147,36 @@ jobs:
           $ldflags += " -X 'HyLauncher/internal/config.ButlerBaseURL=$env:BUTLER_BASE_URL'"
           $ldflags += " -X 'HyLauncher/internal/config.DiscordAppID=$env:DISCORD_APP_ID'"
           go build -ldflags="$ldflags" -o "release/update-helper-windows.exe" ./cmd/update-helper
-          if (-not (Test-Path "release/update-helper-windows.exe")) {
-              throw "Failed to build update-helper-windows.exe"
-          }
-          
-          # Add NSIS to PATH for this step
+
+          # Add NSIS to PATH
           $env:PATH = "C:\Program Files (x86)\NSIS\Bin;$env:PATH"
-          
-          # Determine output filename based on VERSION env var
+
+          # Build Wails payload
+          $wailsLdflags = $ldflags
+          wails build -platform windows/amd64 -ldflags "$wailsLdflags"
+
+          # Package payload as ZIP for bootstrap delivery
+          $payloadDir = "payload-staging"
+          New-Item -ItemType Directory -Force -Path $payloadDir | Out-Null
+          Copy-Item "build/bin/HyLauncher.exe" "$payloadDir/HyLauncher.exe" -Force
+          Copy-Item "release/update-helper-windows.exe" "$payloadDir/update-helper.exe" -Force
+          Compress-Archive -Path "$payloadDir/*" -DestinationPath "release/payload-windows-amd64.zip" -Force
+
+          # Also build standalone portable + installer for direct download
           $versionSuffix = if ($env:VERSION) { "-$env:VERSION" } else { "" }
           $outputName = "PorkLauncher-windows-x64$versionSuffix"
-          
-          # Build portable version
-          Write-Host "Building portable version..."
-          $wailsLdflags = "-X 'HyLauncher/internal/config.AzuriomBaseURL=$env:AZURIOM_BASE_URL'"
-          $wailsLdflags += " -X 'HyLauncher/internal/config.SessionServiceURL=$env:SESSION_SERVICE_URL'"
-          $wailsLdflags += " -X 'HyLauncher/internal/config.PatchDomain=$env:PATCH_DOMAIN'"
-          $wailsLdflags += " -X 'HyLauncher/internal/config.PatchAPIURL=$env:PATCH_API_URL'"
-          $wailsLdflags += " -X 'HyLauncher/internal/config.GamePatchesURL=$env:GAME_PATCHES_URL'"
-          $wailsLdflags += " -X 'HyLauncher/internal/config.ServerLogoURL=$env:SERVER_LOGO_URL'"
-          $wailsLdflags += " -X 'HyLauncher/internal/config.ServerBannerURL=$env:SERVER_BANNER_URL'"
-          $wailsLdflags += " -X 'HyLauncher/internal/config.ServerIP=$env:SERVER_IP'"
-          $wailsLdflags += " -X 'HyLauncher/internal/config.ServerName=$env:SERVER_NAME'"
-          $wailsLdflags += " -X 'HyLauncher/internal/config.JREManifestURL=$env:JRE_MANIFEST_URL'"
-          $wailsLdflags += " -X 'HyLauncher/internal/config.ButlerBaseURL=$env:BUTLER_BASE_URL'"
-          $wailsLdflags += " -X 'HyLauncher/internal/config.DiscordAppID=$env:DISCORD_APP_ID'"
-          wails build -platform windows/amd64 -ldflags "$wailsLdflags"
-          
-          $portableSource = "build/bin/HyLauncher.exe"
-          $portableDest = "release/$outputName-portable.exe"
-          
-          if (-not (Test-Path $portableSource)) {
-              throw "Portable binary not found at $portableSource"
-          }
-          
-          Copy-Item $portableSource $portableDest -Force
-          Write-Host "Created: $portableDest"
-          
-          # Build NSIS installer version
-          Write-Host "Building NSIS installer..."
-          wails build -platform windows/amd64 -nsis -ldflags "$wailsLdflags"
-          
-          $installerSource = "build/bin/HyLauncher-amd64-installer.exe"
-          $installerDest = "release/$outputName-setup.exe"
-          
-          if (-not (Test-Path $installerSource)) {
-              throw "Installer binary not found at $installerSource"
-          }
-          
-          Copy-Item $installerSource $installerDest -Force
-          Write-Host "Created: $installerDest"
-          
-          # List release contents
-          Write-Host "`nRelease artifacts:"
-          Get-ChildItem "release/*.exe" | Select-Object Name, @{N="Size";E={"{0:N0} KB" -f ($_.Length/1KB)}}
+          Copy-Item "build/bin/HyLauncher.exe" "release/$outputName-portable.exe" -Force
 
-      - name: Build (macOS ARM64)
+          wails build -platform windows/amd64 -nsis -ldflags "$wailsLdflags"
+          $installerSource = "build/bin/HyLauncher-amd64-installer.exe"
+          if (Test-Path $installerSource) {
+              Copy-Item $installerSource "release/$outputName-setup.exe" -Force
+          }
+
+          Write-Host "`nRelease artifacts:"
+          Get-ChildItem "release/*" | Select-Object Name, @{N="Size";E={"{0:N0} KB" -f ($_.Length/1KB)}}
+
+      - name: Build payload (macOS ARM64)
         if: matrix.platform == 'darwin/arm64'
         env:
           AZURIOM_BASE_URL: ${{ secrets.AZURIOM_BASE_URL }}
@@ -174,8 +194,8 @@ jobs:
         run: |
           set -e
           VERSION="${{ inputs.version }}"
-          echo "Building macOS ARM64 version $VERSION"
-          
+          echo "Building macOS ARM64 payload v$VERSION"
+
           mkdir -p release
           LDFLAGS="-X 'HyLauncher/internal/config.AzuriomBaseURL=${AZURIOM_BASE_URL}'"
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.SessionServiceURL=${SESSION_SERVICE_URL}'"
@@ -189,20 +209,24 @@ jobs:
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.JREManifestURL=${JRE_MANIFEST_URL}'"
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ButlerBaseURL=${BUTLER_BASE_URL}'"
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.DiscordAppID=${DISCORD_APP_ID}'"
+
+          # Build update-helper
           go build -ldflags="${LDFLAGS}" -o release/update-helper-macos-arm64 ./cmd/update-helper
           chmod +x release/update-helper-macos-arm64
-          
-          # Build ARM64 binary (uses outputfilename from wails.json)
+
+          # Build Wails payload
           wails build -platform darwin/arm64 -ldflags "${LDFLAGS}"
-          
-          # Check if build succeeded
+
           if [ ! -d "build/bin/HyLauncher.app" ]; then
             echo "ERROR: Build failed - HyLauncher.app not found"
             ls -la build/bin/
             exit 1
           fi
-          
-          # Create DMG
+
+          # Package payload as ZIP for bootstrap delivery
+          cd build/bin && zip -r ../../release/payload-darwin-arm64.zip HyLauncher.app && cd ../..
+
+          # Also create standalone DMG for direct download
           npm install -g create-dmg
           create-dmg \
             --volname "PorkLauncher" \
@@ -211,24 +235,16 @@ jobs:
             --app-drop-link 600 185 \
             "release/PorkLauncher-macos-arm64.dmg" \
             "build/bin/HyLauncher.app" || true
-          
-          # If create-dmg fails, create zip as fallback
+
           if [ ! -f "release/PorkLauncher-macos-arm64.dmg" ]; then
             echo "DMG creation failed, creating ZIP fallback..."
-            cd build/bin && zip -r ../../release/PorkLauncher-macos-arm64.zip HyLauncher.app
-            cd ../..
+            cp release/payload-darwin-arm64.zip release/PorkLauncher-macos-arm64.zip
           fi
-          
-          # Verify at least one file was created
-          if [ ! -f "release/PorkLauncher-macos-arm64.dmg" ] && [ ! -f "release/PorkLauncher-macos-arm64.zip" ]; then
-            echo "ERROR: No macOS ARM64 artifact created!"
-            exit 1
-          fi
-          
-          echo "macOS ARM64 build complete:"
-          ls -lh release/PorkLauncher-macos-arm64* || true
 
-      - name: Build (macOS AMD64)
+          echo "macOS ARM64 build complete:"
+          ls -lh release/* || true
+
+      - name: Build payload (macOS AMD64)
         if: matrix.platform == 'darwin/amd64'
         env:
           AZURIOM_BASE_URL: ${{ secrets.AZURIOM_BASE_URL }}
@@ -246,8 +262,8 @@ jobs:
         run: |
           set -e
           VERSION="${{ inputs.version }}"
-          echo "Building macOS AMD64 version $VERSION"
-          
+          echo "Building macOS AMD64 payload v$VERSION"
+
           mkdir -p release
           LDFLAGS="-X 'HyLauncher/internal/config.AzuriomBaseURL=${AZURIOM_BASE_URL}'"
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.SessionServiceURL=${SESSION_SERVICE_URL}'"
@@ -261,20 +277,24 @@ jobs:
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.JREManifestURL=${JRE_MANIFEST_URL}'"
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ButlerBaseURL=${BUTLER_BASE_URL}'"
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.DiscordAppID=${DISCORD_APP_ID}'"
+
+          # Build update-helper
           go build -ldflags="${LDFLAGS}" -o release/update-helper-macos-amd64 ./cmd/update-helper
           chmod +x release/update-helper-macos-amd64
-          
-          # Build AMD64 binary (uses outputfilename from wails.json)
+
+          # Build Wails payload
           wails build -platform darwin/amd64 -ldflags "${LDFLAGS}"
-          
-          # Check if build succeeded
+
           if [ ! -d "build/bin/HyLauncher.app" ]; then
             echo "ERROR: Build failed - HyLauncher.app not found"
             ls -la build/bin/
             exit 1
           fi
-          
-          # Create DMG
+
+          # Package payload as ZIP for bootstrap delivery
+          cd build/bin && zip -r ../../release/payload-darwin-amd64.zip HyLauncher.app && cd ../..
+
+          # Also create standalone DMG for direct download
           npm install -g create-dmg
           create-dmg \
             --volname "PorkLauncher" \
@@ -283,22 +303,14 @@ jobs:
             --app-drop-link 600 185 \
             "release/PorkLauncher-macos-amd64.dmg" \
             "build/bin/HyLauncher.app" || true
-          
-          # If create-dmg fails, create zip as fallback
+
           if [ ! -f "release/PorkLauncher-macos-amd64.dmg" ]; then
             echo "DMG creation failed, creating ZIP fallback..."
-            cd build/bin && zip -r ../../release/PorkLauncher-macos-amd64.zip HyLauncher.app
-            cd ../..
+            cp release/payload-darwin-amd64.zip release/PorkLauncher-macos-amd64.zip
           fi
-          
-          # Verify at least one file was created
-          if [ ! -f "release/PorkLauncher-macos-amd64.dmg" ] && [ ! -f "release/PorkLauncher-macos-amd64.zip" ]; then
-            echo "ERROR: No macOS AMD64 artifact created!"
-            exit 1
-          fi
-          
+
           echo "macOS AMD64 build complete:"
-          ls -lh release/PorkLauncher-macos-amd64* || true
+          ls -lh release/* || true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -320,6 +332,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -336,75 +354,124 @@ jobs:
       - name: Prepare release files
         run: |
           mkdir -p release
-          
-          # Debug: show all artifact directories
+
           echo "Available artifact directories:"
           find artifacts -type d 2>/dev/null || true
-          
-          # Copy all artifacts
+
           for dir in artifacts/release-*/; do
             if [ -d "$dir" ] && [ "$(ls -A $dir)" ]; then
               echo "Copying from $dir..."
               cp -r "$dir"* release/
             fi
           done
-          
+
           echo "Files in release directory:"
           ls -la release/
-          
-          # Fail if no files were copied
+
           if [ ! "$(ls -A release)" ]; then
             echo "Error: No release files found!"
             exit 1
           fi
 
-      - name: Generate version manifest
+      - name: Generate metadata.json and sign
+        env:
+          ED25519_PRIVATE_KEY: ${{ secrets.ED25519_PRIVATE_KEY }}
         run: |
           VERSION="${{ inputs.version }}"
-          
-          echo "Calculating checksums..."
-          
-          # Windows
-          WINDOWS_PORTABLE_SHA=$(sha256sum release/PorkLauncher-windows-x64-portable.exe | cut -d' ' -f1)
-          WINDOWS_SETUP_SHA=$(sha256sum release/PorkLauncher-windows-x64-setup.exe | cut -d' ' -f1)
-          WINDOWS_HELPER_SHA=$(sha256sum release/update-helper-windows.exe | cut -d' ' -f1)
-          
-          # macOS ARM64
-          if [ -f "release/PorkLauncher-macos-arm64.dmg" ]; then
-            MACOS_ARM64_LAUNCHER_SHA=$(sha256sum release/PorkLauncher-macos-arm64.dmg | cut -d' ' -f1)
-            MACOS_ARM64_EXT="dmg"
+          REPO="${{ github.repository }}"
+
+          echo "Calculating payload checksums..."
+
+          # Payload ZIPs (delivered by bootstrap)
+          WIN_PAYLOAD_SHA=$(sha256sum release/payload-windows-amd64.zip | cut -d' ' -f1)
+          WIN_PAYLOAD_SIZE=$(stat -c%s release/payload-windows-amd64.zip)
+
+          MAC_ARM64_PAYLOAD_SHA=$(sha256sum release/payload-darwin-arm64.zip | cut -d' ' -f1)
+          MAC_ARM64_PAYLOAD_SIZE=$(stat -c%s release/payload-darwin-arm64.zip)
+
+          MAC_AMD64_PAYLOAD_SHA=$(sha256sum release/payload-darwin-amd64.zip | cut -d' ' -f1)
+          MAC_AMD64_PAYLOAD_SIZE=$(stat -c%s release/payload-darwin-amd64.zip)
+
+          echo "Generating metadata.json..."
+          cat <<EOF > release/metadata.json
+          {
+            "version": "$VERSION",
+            "payload": {
+              "windows/amd64": {
+                "url": "https://github.com/$REPO/releases/download/v$VERSION/payload-windows-amd64.zip",
+                "sha256": "$WIN_PAYLOAD_SHA",
+                "size": $WIN_PAYLOAD_SIZE
+              },
+              "darwin/arm64": {
+                "url": "https://github.com/$REPO/releases/download/v$VERSION/payload-darwin-arm64.zip",
+                "sha256": "$MAC_ARM64_PAYLOAD_SHA",
+                "size": $MAC_ARM64_PAYLOAD_SIZE
+              },
+              "darwin/amd64": {
+                "url": "https://github.com/$REPO/releases/download/v$VERSION/payload-darwin-amd64.zip",
+                "sha256": "$MAC_AMD64_PAYLOAD_SHA",
+                "size": $MAC_AMD64_PAYLOAD_SIZE
+              }
+            },
+            "min_bootstrap_version": "1.0.0"
+          }
+          EOF
+
+          # Sign metadata.json with Ed25519
+          if [ -n "$ED25519_PRIVATE_KEY" ]; then
+            echo "Signing metadata.json..."
+            echo -n "$ED25519_PRIVATE_KEY" > /tmp/private.key
+            go run ./tools/sign-payload -sign -key /tmp/private.key -input release/metadata.json
+            rm -f /tmp/private.key
+            echo "Metadata signed successfully"
           else
-            MACOS_ARM64_LAUNCHER_SHA=$(sha256sum release/PorkLauncher-macos-arm64.zip | cut -d' ' -f1)
+            echo "WARNING: ED25519_PRIVATE_KEY not set, skipping signature"
+          fi
+
+      - name: Generate legacy version.json (backward compatibility)
+        run: |
+          VERSION="${{ inputs.version }}"
+          REPO="${{ github.repository }}"
+
+          # Windows
+          WINDOWS_PORTABLE_SHA=$(sha256sum release/PorkLauncher-windows-x64-portable.exe 2>/dev/null | cut -d' ' -f1 || echo "")
+          WINDOWS_SETUP_SHA=$(sha256sum release/PorkLauncher-windows-x64-setup.exe 2>/dev/null | cut -d' ' -f1 || echo "")
+          WINDOWS_HELPER_SHA=$(sha256sum release/update-helper-windows.exe 2>/dev/null | cut -d' ' -f1 || echo "")
+
+          # macOS
+          if [ -f "release/PorkLauncher-macos-arm64.dmg" ]; then
+            MACOS_ARM64_SHA=$(sha256sum release/PorkLauncher-macos-arm64.dmg | cut -d' ' -f1)
+            MACOS_ARM64_EXT="dmg"
+          elif [ -f "release/PorkLauncher-macos-arm64.zip" ]; then
+            MACOS_ARM64_SHA=$(sha256sum release/PorkLauncher-macos-arm64.zip | cut -d' ' -f1)
             MACOS_ARM64_EXT="zip"
           fi
-          MACOS_ARM64_HELPER_SHA=$(sha256sum release/update-helper-macos-arm64 | cut -d' ' -f1)
-          
-          # macOS AMD64
+          MACOS_ARM64_HELPER_SHA=$(sha256sum release/update-helper-macos-arm64 2>/dev/null | cut -d' ' -f1 || echo "")
+
           if [ -f "release/PorkLauncher-macos-amd64.dmg" ]; then
-            MACOS_AMD64_LAUNCHER_SHA=$(sha256sum release/PorkLauncher-macos-amd64.dmg | cut -d' ' -f1)
+            MACOS_AMD64_SHA=$(sha256sum release/PorkLauncher-macos-amd64.dmg | cut -d' ' -f1)
             MACOS_AMD64_EXT="dmg"
-          else
-            MACOS_AMD64_LAUNCHER_SHA=$(sha256sum release/PorkLauncher-macos-amd64.zip | cut -d' ' -f1)
+          elif [ -f "release/PorkLauncher-macos-amd64.zip" ]; then
+            MACOS_AMD64_SHA=$(sha256sum release/PorkLauncher-macos-amd64.zip | cut -d' ' -f1)
             MACOS_AMD64_EXT="zip"
           fi
-          MACOS_AMD64_HELPER_SHA=$(sha256sum release/update-helper-macos-amd64 | cut -d' ' -f1)
-          
-          echo "Generating version.json..."
+          MACOS_AMD64_HELPER_SHA=$(sha256sum release/update-helper-macos-amd64 2>/dev/null | cut -d' ' -f1 || echo "")
+
           cat <<EOF > release/version.json
           {
             "version": "$VERSION",
             "windows": {
               "amd64": {
                 "portable": {
-                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/PorkLauncher-windows-x64-portable.exe",
+                  "url": "https://github.com/$REPO/releases/download/v$VERSION/PorkLauncher-windows-x64-portable.exe",
                   "sha256": "$WINDOWS_PORTABLE_SHA"
                 },
                 "setup": {
-                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/PorkLauncher-windows-x64-setup.exe",
+                  "url": "https://github.com/$REPO/releases/download/v$VERSION/PorkLauncher-windows-x64-setup.exe",
                   "sha256": "$WINDOWS_SETUP_SHA"
                 },
                 "helper": {
-                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-windows.exe",
+                  "url": "https://github.com/$REPO/releases/download/v$VERSION/update-helper-windows.exe",
                   "sha256": "$WINDOWS_HELPER_SHA"
                 }
               }
@@ -412,21 +479,21 @@ jobs:
             "darwin": {
               "arm64": {
                 "launcher": {
-                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/PorkLauncher-macos-arm64.$MACOS_ARM64_EXT",
-                  "sha256": "$MACOS_ARM64_LAUNCHER_SHA"
+                  "url": "https://github.com/$REPO/releases/download/v$VERSION/PorkLauncher-macos-arm64.${MACOS_ARM64_EXT:-zip}",
+                  "sha256": "${MACOS_ARM64_SHA:-}"
                 },
                 "helper": {
-                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-macos-arm64",
+                  "url": "https://github.com/$REPO/releases/download/v$VERSION/update-helper-macos-arm64",
                   "sha256": "$MACOS_ARM64_HELPER_SHA"
                 }
               },
               "amd64": {
                 "launcher": {
-                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/PorkLauncher-macos-amd64.$MACOS_AMD64_EXT",
-                  "sha256": "$MACOS_AMD64_LAUNCHER_SHA"
+                  "url": "https://github.com/$REPO/releases/download/v$VERSION/PorkLauncher-macos-amd64.${MACOS_AMD64_EXT:-zip}",
+                  "sha256": "${MACOS_AMD64_SHA:-}"
                 },
                 "helper": {
-                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-macos-amd64",
+                  "url": "https://github.com/$REPO/releases/download/v$VERSION/update-helper-macos-amd64",
                   "sha256": "$MACOS_AMD64_HELPER_SHA"
                 }
               }
@@ -440,7 +507,7 @@ jobs:
         run: |
           echo "Generating changelog..."
           PREV_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
-          
+
           if [ -z "$PREV_TAG" ]; then
             echo "Initial release" > changelog.txt
           else
@@ -471,15 +538,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           echo "Fetching artifacts..."
-          
+
           ARTIFACTS=$(gh api repos/${{ github.repository }}/actions/artifacts \
             --jq '.artifacts[] | select(.workflow_run.id != '${{ github.run_id }}') | .id')
-          
+
           if [ -z "$ARTIFACTS" ]; then
             echo "No old artifacts found."
             exit 0
           fi
-          
+
           for id in $ARTIFACTS; do
             echo "Deleting artifact ID: $id"
             gh api -X DELETE repos/${{ github.repository }}/actions/artifacts/$id
