@@ -74,7 +74,7 @@ bootstrap:  ## Build bootstrap loader (~4-6 MB)
 # ─── Payload (Wails app — requires wails CLI) ───
 
 payload:  ## Build payload Wails app (requires wails CLI)
-	wails build -platform $(GOOS)/$(GOARCH) -o HyLauncher -ldflags "$(PAYLOAD_LDFLAGS)"
+	wails build -platform $(GOOS)/$(GOARCH) -o PorkLand -ldflags "$(PAYLOAD_LDFLAGS)"
 	@echo "Payload built in $(OUT_DIR)/"
 
 # ─── Update helper ───
