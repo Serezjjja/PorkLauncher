@@ -67,7 +67,7 @@ func (a *App) Startup(ctx context.Context) {
 	if launcherCfg.DiscordRPC {
 		discordAppID := config.GetDiscordAppID()
 		if discordAppID == "" {
-			discordAppID = "1465005878276128888" // fallback for development
+			discordAppID = "1345687653965631540" // fallback for development
 		}
 		_ = client.Login(discordAppID)
 	}

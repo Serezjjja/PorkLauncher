@@ -24,10 +24,6 @@ func (a *App) discordRPC() {
 		},
 		Buttons: []*client.Button{
 			{
-				Label: "Сайт",
-				Url:   "https://porkland.net",
-			},
-			{
 				Label: "Дискорд",
 				Url:   "https://discord.gg/RbreKRwsH7",
 			},
@@ -57,8 +53,12 @@ func (a *App) SetDiscordRPC(enabled bool) error {
 	a.launcherCfg.DiscordRPC = enabled
 
 	if enabled {
-		if err := client.Login("1345687653965631540"); err != nil {
-			return nil
+		discordAppID := config.GetDiscordAppID()
+		if discordAppID == "" {
+			discordAppID = "1345687653965631540" // fallback for development
+		}
+		if err := client.Login(discordAppID); err != nil {
+			return fmt.Errorf("failed to login to Discord: %w", err)
 		}
 		go a.discordRPC()
 	} else {
