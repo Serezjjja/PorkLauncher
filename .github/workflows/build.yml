@@ -33,8 +33,11 @@ jobs:
             platform: windows/amd64
             artifact_name: app-windows
           - os: macos-latest
-            platform: darwin/universal
-            artifact_name: app-macos
+            platform: darwin/arm64
+            artifact_name: app-macos-arm64
+          - os: macos-latest
+            platform: darwin/amd64
+            artifact_name: app-macos-amd64
 
     runs-on: ${{ matrix.os }}
 
@@ -78,10 +81,12 @@ jobs:
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/bootstrap.FallbackDownloadURL=${FALLBACK_DOWNLOAD_URL}'"
           if [ "${{ matrix.platform }}" = "windows/amd64" ]; then
             GOOS=windows GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o build/bin/PorkLauncher.exe ./cmd/bootstrap
-          elif [ "${{ matrix.platform }}" = "darwin/universal" ]; then
+          elif [ "${{ matrix.platform }}" = "darwin/arm64" ]; then
             GOOS=darwin GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o build/bin/PorkLauncher-darwin-arm64 ./cmd/bootstrap
+            chmod +x build/bin/PorkLauncher-darwin-arm64
+          elif [ "${{ matrix.platform }}" = "darwin/amd64" ]; then
             GOOS=darwin GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o build/bin/PorkLauncher-darwin-amd64 ./cmd/bootstrap
-            chmod +x build/bin/PorkLauncher-darwin-arm64 build/bin/PorkLauncher-darwin-amd64
+            chmod +x build/bin/PorkLauncher-darwin-amd64
           else
             GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o build/bin/PorkLauncher ./cmd/bootstrap
             chmod +x build/bin/PorkLauncher
@@ -118,6 +123,12 @@ jobs:
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.DiscordAppID=${DISCORD_APP_ID}'"
           if [ "${{ matrix.platform }}" = "windows/amd64" ]; then
             go build -ldflags="${LDFLAGS}" -o build/bin/update-helper.exe ./cmd/update-helper
+          elif [ "${{ matrix.platform }}" = "darwin/arm64" ]; then
+            go build -ldflags="${LDFLAGS}" -o build/bin/update-helper-darwin-arm64 ./cmd/update-helper
+            chmod +x build/bin/update-helper-darwin-arm64
+          elif [ "${{ matrix.platform }}" = "darwin/amd64" ]; then
+            go build -ldflags="${LDFLAGS}" -o build/bin/update-helper-darwin-amd64 ./cmd/update-helper
+            chmod +x build/bin/update-helper-darwin-amd64
           else
             go build -ldflags="${LDFLAGS}" -o build/bin/update-helper ./cmd/update-helper
             chmod +x build/bin/update-helper
@@ -153,7 +164,7 @@ jobs:
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.JREManifestURL=${JRE_MANIFEST_URL}'"
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ButlerBaseURL=${BUTLER_BASE_URL}'"
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.DiscordAppID=${DISCORD_APP_ID}'"
-          wails build -platform linux/amd64 -tags webkit2_41 -o PorkLand -ldflags "${LDFLAGS}"
+          wails build -platform linux/amd64 -tags webkit2_41 -o HyLauncher -ldflags "${LDFLAGS}"
 
       - name: Build Wails payload (Windows)
         if: startsWith(matrix.os, 'windows')
@@ -184,10 +195,10 @@ jobs:
           $env:LDFLAGS += " -X 'HyLauncher/internal/config.JREManifestURL=$env:JRE_MANIFEST_URL'"
           $env:LDFLAGS += " -X 'HyLauncher/internal/config.ButlerBaseURL=$env:BUTLER_BASE_URL'"
           $env:LDFLAGS += " -X 'HyLauncher/internal/config.DiscordAppID=$env:DISCORD_APP_ID'"
-          wails build -platform windows/amd64 -o PorkLand -ldflags "$env:LDFLAGS"
+          wails build -platform windows/amd64 -o HyLauncher -ldflags "$env:LDFLAGS"
 
-      - name: Build Wails payload (macOS)
-        if: startsWith(matrix.os, 'macos')
+      - name: Build Wails payload (macOS ARM64)
+        if: matrix.platform == 'darwin/arm64'
         env:
           AZURIOM_BASE_URL: ${{ secrets.AZURIOM_BASE_URL }}
           SESSION_SERVICE_URL: ${{ secrets.SESSION_SERVICE_URL }}
@@ -214,7 +225,37 @@ jobs:
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.JREManifestURL=${JRE_MANIFEST_URL}'"
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ButlerBaseURL=${BUTLER_BASE_URL}'"
           LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.DiscordAppID=${DISCORD_APP_ID}'"
-          wails build -platform darwin/universal -o PorkLand -ldflags "${LDFLAGS}"
+          wails build -platform darwin/arm64 -o HyLauncher.app -ldflags "${LDFLAGS}"
+
+      - name: Build Wails payload (macOS AMD64)
+        if: matrix.platform == 'darwin/amd64'
+        env:
+          AZURIOM_BASE_URL: ${{ secrets.AZURIOM_BASE_URL }}
+          SESSION_SERVICE_URL: ${{ secrets.SESSION_SERVICE_URL }}
+          PATCH_DOMAIN: ${{ secrets.PATCH_DOMAIN }}
+          PATCH_API_URL: ${{ secrets.PATCH_API_URL }}
+          GAME_PATCHES_URL: ${{ secrets.GAME_PATCHES_URL }}
+          SERVER_LOGO_URL: ${{ secrets.SERVER_LOGO_URL }}
+          SERVER_BANNER_URL: ${{ secrets.SERVER_BANNER_URL }}
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_NAME: ${{ secrets.SERVER_NAME }}
+          JRE_MANIFEST_URL: ${{ secrets.JRE_MANIFEST_URL }}
+          BUTLER_BASE_URL: ${{ secrets.BUTLER_BASE_URL }}
+          DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
+        run: |
+          LDFLAGS="-X 'HyLauncher/internal/config.AzuriomBaseURL=${AZURIOM_BASE_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.SessionServiceURL=${SESSION_SERVICE_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.PatchDomain=${PATCH_DOMAIN}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.PatchAPIURL=${PATCH_API_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.GamePatchesURL=${GAME_PATCHES_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ServerLogoURL=${SERVER_LOGO_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ServerBannerURL=${SERVER_BANNER_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ServerIP=${SERVER_IP}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ServerName=${SERVER_NAME}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.JREManifestURL=${JRE_MANIFEST_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.ButlerBaseURL=${BUTLER_BASE_URL}'"
+          LDFLAGS="${LDFLAGS} -X 'HyLauncher/internal/config.DiscordAppID=${DISCORD_APP_ID}'"
+          wails build -platform darwin/amd64 -o HyLauncher.app -ldflags "${LDFLAGS}"
 
       - uses: actions/upload-artifact@v4
         with:
