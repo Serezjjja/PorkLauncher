@@ -17,19 +17,23 @@ func (a *App) discordRPC() {
 	now := time.Now()
 
 	err := client.SetActivity(client.Activity{
-		State:   "Idle",
-		Details: "The best Hytale launcher",
+		State:   "Игра HyTale",
+		Details: "Залетай к нам на сервер!",
 		Timestamps: &client.Timestamps{
 			Start: &now,
 		},
 		Buttons: []*client.Button{
 			{
-				Label: "GitHub",
-				Url:   "https://github.com/ArchDevs/HyLauncher",
+				Label: "Сайт",
+				Url:   "https://porkland.net",
 			},
 			{
-				Label: "Website",
-				Url:   "https://hylauncher.fun",
+				Label: "Дискорд",
+				Url:   "https://discord.gg/RbreKRwsH7",
+			},
+			{
+				Label: "Телеграм",
+				Url:   "https://t.me/porkland",
 			},
 		},
 	})
@@ -53,7 +57,7 @@ func (a *App) SetDiscordRPC(enabled bool) error {
 	a.launcherCfg.DiscordRPC = enabled
 
 	if enabled {
-		if err := client.Login("1465005878276128888"); err != nil {
+		if err := client.Login("1345687653965631540"); err != nil {
 			return nil
 		}
 		go a.discordRPC()
