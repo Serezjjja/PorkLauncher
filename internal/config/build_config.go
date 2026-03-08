@@ -16,6 +16,7 @@ var (
 	PatchDomain = ""
 
 	// PatchAPIURL is the URL for the patch API endpoint
+	// This is the patches-config endpoint that returns { patches_url: "..." }
 	PatchAPIURL = ""
 
 	// GamePatchesURL is the base URL for game patch files
@@ -41,6 +42,25 @@ var (
 
 	// DiscordAppID is the Discord Rich Presence application ID
 	DiscordAppID = ""
+
+	// AuthDomain is the auth server domain (e.g., "auth.sanasol.ws")
+	AuthDomain = ""
+)
+
+// Hytale-F2P API configuration
+// Multi-source fallback chain for patches config
+const (
+	// Primary patches config source
+	DefaultPatchesConfigPrimary = "https://auth.sanasol.ws/api/patches-config"
+	// Backup patches config sources
+	DefaultPatchesConfigBackup1 = "https://htdwnldsan.top/patches-config"
+	DefaultPatchesConfigBackup2 = "https://dl1.htdwnldsan.top/patches-config"
+	// Hardcoded fallback patches URL
+	DefaultPatchesFallback = "https://dl.vboro.de/patches"
+	// DNS TXT record for patches URL
+	DefaultPatchesDNSTXT = "_patches.htdwnldsan.top"
+	// Default auth domain
+	DefaultAuthDomain = "auth.sanasol.ws"
 )
 
 // GetAzuriomBaseURL returns the Azuriom base URL
@@ -65,12 +85,38 @@ func GetPatchDomain() string {
 	return PatchDomain
 }
 
-// GetPatchAPIURL returns the patch API URL
+// GetPatchAPIURL returns the patch API URL (patches-config endpoint)
+// Returns the primary patches config URL by default
 func GetPatchAPIURL() string {
-	if PatchAPIURL == "" {
-		return "https://localhost/api/pwr"
+	if PatchAPIURL != "" {
+		return PatchAPIURL
 	}
-	return PatchAPIURL
+	return DefaultPatchesConfigPrimary
+}
+
+// GetPatchesConfigSources returns all patches config sources for fallback
+func GetPatchesConfigSources() []string {
+	if PatchAPIURL != "" {
+		return []string{PatchAPIURL}
+	}
+	return []string{
+		DefaultPatchesConfigPrimary,
+		DefaultPatchesConfigBackup1,
+		DefaultPatchesConfigBackup2,
+	}
+}
+
+// GetPatchesFallbackURL returns the hardcoded fallback patches URL
+func GetPatchesFallbackURL() string {
+	return DefaultPatchesFallback
+}
+
+// GetAuthDomain returns the auth server domain
+func GetAuthDomain() string {
+	if AuthDomain != "" {
+		return AuthDomain
+	}
+	return DefaultAuthDomain
 }
 
 // GetGamePatchesURL returns the game patches base URL

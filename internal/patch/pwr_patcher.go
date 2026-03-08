@@ -3,16 +3,12 @@ package patch
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"time"
 
-	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/platform"
 	"HyLauncher/internal/progress"
@@ -115,16 +111,16 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 		return fmt.Errorf("cannot get butler: %w", err)
 	}
 
-	logger.Info("Running butler apply", "pwr", pwrFile, "sig", sigFile, "gameDir", gameDir, "stagingDir", stagingDir)
+	logger.Info("Running butler apply", "pwr", pwrFile, "gameDir", gameDir, "stagingDir", stagingDir)
 
 	// Create a timeout context for butler apply (30 minutes max)
 	applyCtx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
 
+	// New API doesn't use signatures - butler apply without --signature flag
 	cmd := exec.CommandContext(applyCtx, butlerPath,
 		"apply",
 		"--staging-dir", stagingDir,
-		"--signature", sigFile,
 		pwrFile,
 		gameDir,
 	)
@@ -208,42 +204,49 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 }
 
 func fetchPatchSteps(ctx context.Context, branch string, currentVer int) ([]PatchStep, error) {
-	reqBody := PatchRequest{
-		OS:      env.GetOS(),
-		Arch:    env.GetArchForAPI(),
-		Branch:  branch,
-		Version: strconv.Itoa(currentVer),
-	}
-
-	jsonData, err := json.Marshal(reqBody)
+	// Use the new manifest-based API from version.go
+	manifest, err := fetchManifest()
 	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+		return nil, fmt.Errorf("fetch manifest: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", config.GetPatchAPIURL(), bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+	patches := getPlatformPatches(manifest, branch)
+	if len(patches) == 0 {
+		return nil, fmt.Errorf("no patches available for platform")
 	}
 
-	req.Header.Set("Content-Type", "application/json")
+	baseURL, _ := fetchPatchesConfigWithFallback()
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("do request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
-	}
-
-	var result PatchStepsResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
+	// Build patch steps - find patches starting from currentVer
+	var steps []PatchStep
+	for _, p := range patches {
+		if p.From == currentVer {
+			steps = append(steps, PatchStep{
+				From:    p.From,
+				To:      p.To,
+				PWR:     fmt.Sprintf("%s/%s", baseURL, p.Key),
+				PWRHead: "",
+				Sig:     "",
+			})
+		}
 	}
 
-	return result.Steps, nil
+	// If no incremental patches found, look for full patch (0 -> target)
+	if len(steps) == 0 {
+		for _, p := range patches {
+			if p.From == 0 {
+				steps = append(steps, PatchStep{
+					From:    p.From,
+					To:      p.To,
+					PWR:     fmt.Sprintf("%s/%s", baseURL, p.Key),
+					PWRHead: "",
+					Sig:     "",
+				})
+			}
+		}
+	}
+
+	return steps, nil
 }
 
 func downloadPatchStep(ctx context.Context, step PatchStep, reporter *progress.Reporter) (pwrPath string, sigPath string, err error) {
@@ -251,43 +254,31 @@ func downloadPatchStep(ctx context.Context, step PatchStep, reporter *progress.R
 	_ = os.MkdirAll(cacheDir, 0755)
 
 	pwrFileName := fmt.Sprintf("%d_to_%d.pwr", step.From, step.To)
-	sigFileName := fmt.Sprintf("%d_to_%d.pwr.sig", step.From, step.To)
-
 	pwrDest := filepath.Join(cacheDir, pwrFileName)
-	sigDest := filepath.Join(cacheDir, sigFileName)
 
-	_, pwrErr := os.Stat(pwrDest)
-	_, sigErr := os.Stat(sigDest)
-	if pwrErr == nil && sigErr == nil {
+	// Check if PWR file is already cached
+	if _, err := os.Stat(pwrDest); err == nil {
 		if reporter != nil {
-			reporter.Report(progress.StagePWR, 100, "Patch files cached")
+			reporter.Report(progress.StagePWR, 100, "Patch file cached")
 		}
-		return pwrDest, sigDest, nil
+		// Return empty sigPath since new API doesn't use signatures
+		return pwrDest, "", nil
 	}
 
 	if reporter != nil {
 		reporter.Report(progress.StagePWR, 0, fmt.Sprintf("Downloading patch %d→%d...", step.From, step.To))
 	}
 
-	pwrScaler := progress.NewScaler(reporter, progress.StagePWR, 0, 70)
+	pwrScaler := progress.NewScaler(reporter, progress.StagePWR, 0, 100)
 	if err := download.DownloadWithReporter(ctx, pwrDest, step.PWR, pwrFileName, reporter, progress.StagePWR, pwrScaler); err != nil {
 		_ = os.Remove(pwrDest + ".tmp")
 		return "", "", fmt.Errorf("download PWR: %w", err)
 	}
 
 	if reporter != nil {
-		reporter.Report(progress.StagePWR, 70, "Downloading signature...")
+		reporter.Report(progress.StagePWR, 100, "Patch file downloaded")
 	}
 
-	sigScaler := progress.NewScaler(reporter, progress.StagePWR, 70, 100)
-	if err := download.DownloadWithReporter(ctx, sigDest, step.Sig, sigFileName, reporter, progress.StagePWR, sigScaler); err != nil {
-		_ = os.Remove(sigDest + ".tmp")
-		return "", "", fmt.Errorf("download signature: %w", err)
-	}
-
-	if reporter != nil {
-		reporter.Report(progress.StagePWR, 100, "Patch files downloaded")
-	}
-
-	return pwrDest, sigDest, nil
+	// Return empty sigPath since new API doesn't use signatures
+	return pwrDest, "", nil
 }

@@ -1,16 +1,19 @@
 package patch
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
+	"HyLauncher/pkg/logger"
 )
 
 type VersionCheckResult struct {
@@ -22,6 +25,41 @@ type AllVersionsResult struct {
 	Versions []int
 	Error    error
 }
+
+// PatchesConfigResponse represents the response from patches-config endpoint
+// Returns { patches_url: "https://..." }
+type PatchesConfigResponse struct {
+	PatchesURL string `json:"patches_url"`
+}
+
+// ManifestFile represents a file entry in the manifest
+type ManifestFile struct {
+	Size int64 `json:"size"`
+}
+
+// Manifest represents the manifest.json structure
+// { files: { "windows/amd64/release/0_to_11.pwr": { size: 12345 }, ... } }
+type Manifest struct {
+	Files map[string]ManifestFile `json:"files"`
+}
+
+// PatchInfo represents a parsed patch entry
+type PatchInfo struct {
+	From int
+	To   int
+	Key  string
+	Size int64
+}
+
+// patchesState holds the cached patches URL and manifest
+var (
+	patchesStateMu    sync.RWMutex
+	patchesBaseURL    string
+	patchesBaseURLSet time.Time
+	manifestCache     *Manifest
+	manifestCacheSet  time.Time
+	fallbackBuild     = 11 // Fallback latest build if manifest unreachable
+)
 
 type cache struct {
 	mu            sync.RWMutex
@@ -103,6 +141,157 @@ func (c *cache) clear() {
 	c.lastSet = make(map[string]time.Time)
 }
 
+// fetchPatchesConfigWithFallback fetches patches URL from config endpoints with fallback
+func fetchPatchesConfigWithFallback() (string, error) {
+	// Check memory cache (5 min TTL)
+	patchesStateMu.RLock()
+	if patchesBaseURL != "" && time.Since(patchesBaseURLSet) < 5*time.Minute {
+		url := patchesBaseURL
+		patchesStateMu.RUnlock()
+		return url, nil
+	}
+	patchesStateMu.RUnlock()
+
+	// Try all config sources
+	sources := config.GetPatchesConfigSources()
+	client := &http.Client{Timeout: 8 * time.Second}
+
+	for _, source := range sources {
+		logger.Info("Trying patches config source", "url", source)
+		resp, err := client.Get(source)
+		if err != nil {
+			logger.Warn("Patches config source failed", "url", source, "error", err)
+			continue
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			logger.Warn("Patches config returned non-200", "url", source, "status", resp.StatusCode)
+			continue
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			logger.Warn("Failed to read patches config response", "url", source, "error", err)
+			continue
+		}
+
+		var cfg PatchesConfigResponse
+		if err := json.Unmarshal(body, &cfg); err != nil {
+			logger.Warn("Failed to parse patches config", "url", source, "error", err)
+			continue
+		}
+
+		if cfg.PatchesURL != "" {
+			url := strings.TrimRight(cfg.PatchesURL, "/")
+			patchesStateMu.Lock()
+			patchesBaseURL = url
+			patchesBaseURLSet = time.Now()
+			patchesStateMu.Unlock()
+			logger.Info("Got patches URL from config", "url", url)
+			return url, nil
+		}
+	}
+
+	// Use hardcoded fallback
+	fallback := config.GetPatchesFallbackURL()
+	logger.Warn("All patches config sources failed, using fallback", "url", fallback)
+	patchesStateMu.Lock()
+	patchesBaseURL = fallback
+	patchesBaseURLSet = time.Now()
+	patchesStateMu.Unlock()
+	return fallback, nil
+}
+
+// fetchManifest fetches the manifest.json from the patches base URL
+func fetchManifest() (*Manifest, error) {
+	// Check memory cache (1 min TTL)
+	patchesStateMu.RLock()
+	if manifestCache != nil && time.Since(manifestCacheSet) < 1*time.Minute {
+		m := manifestCache
+		patchesStateMu.RUnlock()
+		return m, nil
+	}
+	patchesStateMu.RUnlock()
+
+	baseURL, err := fetchPatchesConfigWithFallback()
+	if err != nil {
+		return nil, err
+	}
+
+	manifestURL := baseURL + "/manifest.json"
+	logger.Info("Fetching manifest", "url", manifestURL)
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Get(manifestURL)
+	if err != nil {
+		return nil, fmt.Errorf("fetch manifest: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("manifest returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read manifest: %w", err)
+	}
+
+	var manifest Manifest
+	if err := json.Unmarshal(body, &manifest); err != nil {
+		return nil, fmt.Errorf("parse manifest: %w", err)
+	}
+
+	if manifest.Files == nil {
+		return nil, fmt.Errorf("invalid manifest: no files")
+	}
+
+	patchesStateMu.Lock()
+	manifestCache = &manifest
+	manifestCacheSet = time.Now()
+	patchesStateMu.Unlock()
+
+	logger.Info("Manifest fetched successfully", "files", len(manifest.Files))
+	return &manifest, nil
+}
+
+// getPlatformPatches extracts patches for current platform and branch
+func getPlatformPatches(manifest *Manifest, branch string) []PatchInfo {
+	os := env.GetOS()
+	arch := env.GetArchForAPI()
+	prefix := fmt.Sprintf("%s/%s/%s/", os, arch, branch)
+
+	var patches []PatchInfo
+	for key, info := range manifest.Files {
+		if !strings.HasPrefix(key, prefix) || !strings.HasSuffix(key, ".pwr") {
+			continue
+		}
+
+		// Parse filename: "0_to_11.pwr" -> from=0, to=11
+		filename := key[len(prefix) : len(key)-4] // Remove prefix and .pwr
+		parts := strings.Split(filename, "_to_")
+		if len(parts) != 2 {
+			continue
+		}
+
+		from, err1 := strconv.Atoi(parts[0])
+		to, err2 := strconv.Atoi(parts[1])
+		if err1 != nil || err2 != nil {
+			continue
+		}
+
+		patches = append(patches, PatchInfo{
+			From: from,
+			To:   to,
+			Key:  key,
+			Size: info.Size,
+		})
+	}
+
+	return patches
+}
+
 func FindLatestVersion(branch string) (int, error) {
 	key := cacheKey(branch)
 
@@ -158,41 +347,49 @@ func VerifyVersionExists(branch string, version int) error {
 }
 
 func findLatestVersion(branch string) VersionCheckResult {
-	steps, err := fetchPatchStepsFromAPI(branch, 1)
+	manifest, err := fetchManifest()
 	if err != nil {
-		return VersionCheckResult{
-			Error: fmt.Errorf("cannot reach API or no patches available for %s/%s: %w", runtime.GOOS, runtime.GOARCH, err),
+		logger.Warn("Failed to fetch manifest, using fallback build", "error", err, "fallback", fallbackBuild)
+		return VersionCheckResult{LatestVersion: fallbackBuild}
+	}
+
+	patches := getPlatformPatches(manifest, branch)
+	if len(patches) == 0 {
+		logger.Warn("No patches found for platform, using fallback build", "os", runtime.GOOS, "arch", runtime.GOARCH, "fallback", fallbackBuild)
+		return VersionCheckResult{LatestVersion: fallbackBuild}
+	}
+
+	// Find the highest "to" version
+	latest := 0
+	for _, p := range patches {
+		if p.To > latest {
+			latest = p.To
 		}
 	}
 
-	if len(steps) == 0 {
-		return VersionCheckResult{
-			Error: fmt.Errorf("no patches available for %s/%s", runtime.GOOS, runtime.GOARCH),
-		}
-	}
-
-	latest := steps[len(steps)-1].To
+	logger.Info("Found latest version", "branch", branch, "version", latest)
 	return VersionCheckResult{LatestVersion: latest}
 }
 
 func listAllVersions(branch string) AllVersionsResult {
-	steps, err := fetchPatchStepsFromAPI(branch, 1)
+	manifest, err := fetchManifest()
 	if err != nil {
 		return AllVersionsResult{
 			Error: fmt.Errorf("cannot reach API or no patches available for %s/%s: %w", runtime.GOOS, runtime.GOARCH, err),
 		}
 	}
 
-	if len(steps) == 0 {
+	patches := getPlatformPatches(manifest, branch)
+	if len(patches) == 0 {
 		return AllVersionsResult{
 			Error: fmt.Errorf("no patches available for %s/%s", runtime.GOOS, runtime.GOARCH),
 		}
 	}
 
 	versionMap := make(map[int]bool)
-	for _, step := range steps {
-		versionMap[step.From] = true
-		versionMap[step.To] = true
+	for _, p := range patches {
+		versionMap[p.From] = true
+		versionMap[p.To] = true
 	}
 
 	var versions []int
@@ -200,6 +397,7 @@ func listAllVersions(branch string) AllVersionsResult {
 		versions = append(versions, v)
 	}
 
+	// Sort ascending
 	for i := 0; i < len(versions); i++ {
 		for j := i + 1; j < len(versions); j++ {
 			if versions[i] > versions[j] {
@@ -212,42 +410,34 @@ func listAllVersions(branch string) AllVersionsResult {
 }
 
 func fetchPatchStepsFromAPI(branch string, currentVer int) ([]PatchStep, error) {
-	reqBody := PatchRequest{
-		OS:      env.GetOS(),
-		Arch:    env.GetArchForAPI(),
-		Branch:  branch,
-		Version: fmt.Sprintf("%d", currentVer),
-	}
-
-	jsonData, err := json.Marshal(reqBody)
+	manifest, err := fetchManifest()
 	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+		return nil, err
 	}
 
-	req, err := http.NewRequest("GET", config.GetPatchAPIURL(), bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+	patches := getPlatformPatches(manifest, branch)
+	if len(patches) == 0 {
+		return nil, fmt.Errorf("no patches available for %s/%s/%s", runtime.GOOS, runtime.GOARCH, branch)
 	}
 
-	req.Header.Set("Content-Type", "application/json")
+	// For now, we just return a full patch (0 -> currentVer)
+	// The actual patch selection logic is in the pwr_patcher.go
+	var steps []PatchStep
+	baseURL, _ := fetchPatchesConfigWithFallback()
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("do request: %w", err)
+	for _, p := range patches {
+		if p.From == currentVer {
+			steps = append(steps, PatchStep{
+				From:    p.From,
+				To:      p.To,
+				PWR:     fmt.Sprintf("%s/%s", baseURL, p.Key),
+				PWRHead: "", // Not used in new API
+				Sig:     "", // Signature not used in new API
+			})
+		}
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
-	}
-
-	var result PatchStepsResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
-	}
-
-	return result.Steps, nil
+	return steps, nil
 }
 
 func checkVersionExists(client *http.Client, branch string, version int) bool {
@@ -290,8 +480,9 @@ func createClient() *http.Client {
 }
 
 func buildPatchURL(branch string, version int) string {
-	return fmt.Sprintf("%s/%s/%s/%s/0/%d.pwr",
-		config.GetGamePatchesURL(), runtime.GOOS, runtime.GOARCH, branch, version)
+	baseURL, _ := fetchPatchesConfigWithFallback()
+	return fmt.Sprintf("%s/%s/%s/%s/0_to_%d.pwr",
+		baseURL, runtime.GOOS, runtime.GOARCH, branch, version)
 }
 
 func cacheKey(branch string) string {
