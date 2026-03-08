@@ -262,6 +262,16 @@ func (s *GameService) install(ctx context.Context, branch, version string, targe
 		logger.Info("Full reinstall successful")
 	}
 
+	// Save version file for auto version after successful patching
+	if version == "auto" {
+		versionFile := filepath.Join(env.GetGameDir(branch, "auto"), ".version")
+		if err := os.WriteFile(versionFile, []byte(strconv.Itoa(targetVer)), 0644); err != nil {
+			logger.Warn("Failed to save version file", "path", versionFile, "error", err)
+		} else {
+			logger.Info("Saved version file", "path", versionFile, "version", targetVer)
+		}
+	}
+
 	if err := s.fixPermissions(branch, version); err != nil {
 		return err
 	}

@@ -246,6 +246,20 @@ func fetchPatchSteps(ctx context.Context, branch string, currentVer int) ([]Patc
 		}
 	}
 
+	// When starting from version 0, only use the patch with highest "to" version
+	// Don't apply multiple full patches - just use the latest one
+	if currentVer == 0 && len(steps) > 1 {
+		// Find the step with highest "To" value
+		var bestStep PatchStep
+		for _, s := range steps {
+			if s.To > bestStep.To {
+				bestStep = s
+			}
+		}
+		steps = []PatchStep{bestStep}
+		logger.Info("Selected latest full patch", "from", bestStep.From, "to", bestStep.To)
+	}
+
 	return steps, nil
 }
 
