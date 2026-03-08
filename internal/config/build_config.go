@@ -95,10 +95,21 @@ func GetPatchAPIURL() string {
 }
 
 // GetPatchesConfigSources returns all patches config sources for fallback
+// Ignores old API URLs that are no longer available
 func GetPatchesConfigSources() []string {
-	if PatchAPIURL != "" {
+	// List of deprecated URLs to ignore
+	deprecatedURLs := map[string]bool{
+		"https://api.hylauncher.fun/v1/pwr": true,
+		"https://api.hylauncher.fun":        true,
+		"api.hylauncher.fun":                true,
+	}
+
+	// Check if custom URL is set and not deprecated
+	if PatchAPIURL != "" && !deprecatedURLs[PatchAPIURL] {
 		return []string{PatchAPIURL}
 	}
+
+	// Use Hytale-F2P multi-source fallback chain
 	return []string{
 		DefaultPatchesConfigPrimary,
 		DefaultPatchesConfigBackup1,
