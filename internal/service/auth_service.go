@@ -20,12 +20,9 @@ type AuthService struct {
 }
 
 func NewAuthService(ctx context.Context) *AuthService {
-	// Use auth.sanasol.ws as the auth server (Hytale-F2P compatible)
-	authDomain := config.GetAuthDomain()
-	baseUrl := fmt.Sprintf("https://%s", authDomain)
 	return &AuthService{
 		ctx:     ctx,
-		baseUrl: baseUrl,
+		baseUrl: config.GetSessionServiceURL(),
 	}
 }
 
@@ -36,19 +33,15 @@ type gameSessionRequest struct {
 }
 
 type gameSessionResponse struct {
-	IdentityToken string `json:"identityToken"` // lowercase for Hytale-F2P compatibility
-	SessionToken  string `json:"sessionToken"`  // lowercase for Hytale-F2P compatibility
-	// Also support uppercase field names (fallback)
-	IdentityTokenAlt string    `json:"IdentityToken"`
-	SessionTokenAlt  string    `json:"SessionToken"`
-	ExpiresIn        int       `json:"expiresIn"`
-	ExpiresAt        time.Time `json:"expiresAt"`
-	TokenType        string    `json:"tokenType"`
+	IdentityToken string    `json:"identityToken"`
+	SessionToken  string    `json:"sessionToken"`
+	ExpiresIn     int       `json:"expiresIn"`
+	ExpiresAt     time.Time `json:"expiresAt"`
+	TokenType     string    `json:"tokenType"`
 }
 
 func (s *AuthService) FetchGameSession(username string) (*model.GameSession, error) {
-	// Use /game-session/child endpoint (Hytale-F2P compatible)
-	url := s.baseUrl + "/game-session/child"
+	url := s.baseUrl + "/game-session/new"
 
 	uuid := game.OfflineUUID(username).String()
 
@@ -85,20 +78,10 @@ func (s *AuthService) FetchGameSession(username string) (*model.GameSession, err
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	// Handle both uppercase and lowercase field names
-	identityToken := gsResp.IdentityToken
-	if identityToken == "" {
-		identityToken = gsResp.IdentityTokenAlt
-	}
-	sessionToken := gsResp.SessionToken
-	if sessionToken == "" {
-		sessionToken = gsResp.SessionTokenAlt
-	}
-
 	return &model.GameSession{
 		Username:      username,
 		UUID:          uuid,
-		IdentityToken: identityToken,
-		SessionToken:  sessionToken,
+		IdentityToken: gsResp.IdentityToken,
+		SessionToken:  gsResp.SessionToken,
 	}, nil
 }
